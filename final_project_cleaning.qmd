@@ -1,0 +1,933 @@
+---
+title: "Final project: Data and Programming for Public Policy II"
+author: "Cristian Bancayan, Sol Rivas & Claudia Felipe"
+date: "12-04-2024"
+format: 
+  pdf:
+    include-in-header: 
+       text: |
+         \usepackage{fvextra}
+         \DefineVerbatimEnvironment{Highlighting}{Verbatim}{breaklines,commandchars=\\\{\}}
+include-before-body:
+  text: |
+    \RecustomVerbatimEnvironment{verbatim}{Verbatim}{
+      showspaces = false,
+      showtabs = false,
+      breaksymbolleft={},
+      breaklines
+    }
+output:
+  echo: false
+  eval: false
+---
+
+```{python}
+#------------------------
+#       Settings
+#------------------------
+
+# Packages 
+#------------------------
+import os
+import pandas as pd
+import altair as alt
+
+
+# Working directory
+#------------------------
+username = os.getlogin()
+
+# Define paths for each user of this project
+paths = {
+    "Cristian": r"C:\Users\Cristian\Documents\GitHub\ppha30538_fall2024\python_final_proj",
+    "solch": r"C:\Users\solch\OneDrive\Documentos\2024 - autumn quarter\python II\python_final_proj"
+}
+
+# Changing wd depending on the user:
+if username in paths:
+    os.chdir(paths[username])
+    print(f"Directory changed to: {os.getcwd()}")
+else:
+    print(f"No predefined path for user: {username}")
+
+# Note: Please update with the path of your folder and computer user.
+```
+
+```{python}
+# List of countries with conditional cash transfers (CCT)
+cct_countries = {
+    "country": ["Brazil", "Mexico", "Colombia", "Argentina", "Chile", "Peru", "Paraguay"],
+    "cct_name": [
+        "Bolsa Família", 
+        "Progresa/Oportunidades/Prospera", 
+        "Familias en Acción", 
+        "Asignación Universal por Hijo", 
+        "Chile Solidario", 
+        "Juntos", 
+        "Tekoporã"
+    ],
+    "year_cct": [2003, 1997, 2001, 2009, 2002, 2005, 2005]
+}
+
+# Dataframe
+cct_countries = pd.DataFrame(cct_countries)
+cct_countries.to_csv("data/cct_countries.csv", index=False)
+```
+
+
+```{python}
+enrollment_raw = pd.read_excel(
+    "data/2024_Act1_enrollment_LAC.xlsx", sheet_name="area")
+
+# Removing the headers
+enrollment_df = enrollment_raw[6:]
+
+# Removing columns with all NAs
+enrollment_df = enrollment_df.dropna(axis=1, how="all")
+
+# All Latam countries in the dataset
+countries_latam = [
+    'Argentina', 'Bolivia', 'Brazil', 'Chile', 'Colombia', 'Costa Rica', 'Dominican Rep.', 'Ecuador', 'El Salvador', 'Guatemala', 'Honduras', 'Mexico', 'Nicaragua', 'Panama', 'Paraguay', 'Peru', 'Uruguay', 'Venezuela'
+]
+
+# Function to extract countries in a new column from the dataset
+def match_country(value):
+    value = str(value).strip()  
+    if value in countries_latam:
+        return value  
+    return None 
+
+# Extract the countries in a new columns:
+enrollment_df["country"] = enrollment_df['Unnamed: 0'].apply(match_country)
+
+# Repeat country names for each row they correspond
+enrollment_df["country"] = enrollment_df["country"].fillna(method='ffill')
+
+# Order the columns
+cols = ['country'] + [col for col in enrollment_df.columns if col != 'country']
+enrollment_df = enrollment_df[cols]
+
+# Rename columns
+enrollment_df.columns = [
+    'country',
+    'year',
+    'enrollment3_5yo_rural',
+    'enrollment3_5yo_urban',
+    'enrollment6_12yo_rural',
+    'enrollment6_12_yo_urban',
+    'enrollment13_17yo_rural',
+    'enrollment13_17yo_urban',
+    'enrollment18_23yo_rural',
+    'enrollment18_23yo_urban'
+]
+
+# Choosing the years/surveys for each country
+enrollment_df["year"] = enrollment_df["year"].astype(str).str.strip()
+
+# Argentina
+#----------
+# We are using the Continuous Permanent Household Survey (EPHC: Encuesta Permanente de Hogares) second semester, which start in 2003 in the dataset. 
+
+condition_argentina = (
+    (enrollment_df["country"] == "Argentina") &
+    # From 2003-II to 2022-II
+    (enrollment_df["year"].astype(str).str.contains(r"^200[3-9]|20[1-9][0-9]")) & 
+    (enrollment_df["year"].astype(str).str.endswith("-II"))
+)
+# Apply this condition to Argentina
+enrollment_df = enrollment_df[condition_argentina | (enrollment_df["country"] != "Argentina")]
+
+# Remove the sufix "-II" 
+enrollment_df.loc[
+    (enrollment_df["country"] == "Argentina") & (enrollment_df["year"].str.endswith("-II")),
+    "year"
+] = enrollment_df["year"].str.replace("-II", "", regex=False)
+
+
+# Bolivia
+#----------
+# We are keeping from 2011 onwards
+condition_bolivia = enrollment_df.apply(
+    lambda row: row["country"] == "Bolivia" and str(row["year"]).isdigit() and int(row["year"]) >= 2011, axis=1
+)
+
+# Apply the condition for Bolivia
+enrollment_df = enrollment_df[condition_bolivia | (enrollment_df["country"] != "Bolivia")]
+
+# Brazil
+#----------
+# These two index identify the changes in the datasets. We are following:
+# From 1995 to 2003 under the New PNAD. They ask enrollment to all individuals
+# From 2004 to 2011 under the New PNAD With Rural North. 
+# From 2012 onwards under the PNADC. They capture enrollment from 5 years old.
+
+with_rural_north_index = enrollment_df[(enrollment_df["country"] == "Brazil") & (enrollment_df["year"] == "With Rural North")].index
+pnadc_index = enrollment_df[(enrollment_df["country"] == "Brazil") & (enrollment_df["year"] == "PNADC")].index
+
+# Define the condition for Brazil
+condition_brazil = enrollment_df.apply(
+    lambda row: (
+        row["country"] == "Brazil" and str(row["year"]).isdigit() and (
+            (1995 <= int(row["year"]) <= 2003) or
+            (with_rural_north_index.size > 0 and row.name > with_rural_north_index[0] and 2004 <= int(row["year"]) <= 2011) or
+            (pnadc_index.size > 0 and row.name > pnadc_index[0] and 2012 <= int(row["year"]) <= 2022)
+        )
+    ),
+    axis=1
+)
+
+# Apply the condition for Brazil
+enrollment_df = enrollment_df[condition_brazil | (enrollment_df["country"] != "Brazil")]
+
+# Chile
+# ---------
+# We are considering all available information. Not information for all years, every two years
+enrollment_df = enrollment_df[~((enrollment_df["country"] == "Chile") & (enrollment_df["year"] == "Chile"))]
+
+
+# Colombia
+# ----------
+# There is no information before the implementation of the CCT.
+# Data from 2001 to 2005 for ECH-National.
+# In 2008, a new dataset named GEIH-National is available. Gap of 2 years (2006 and 2007). 
+# There is a new methodology for the GEIH since 2021. 2021 and 2022 with new methodology is not considered. It would be just including one more year (2022).
+
+condition_colombia = enrollment_df.apply(
+    lambda row: row["country"] == "Colombia" and str(row["year"]).isdigit(),
+    axis=1
+)
+
+# Apply the condition for Colombia
+enrollment_df = enrollment_df[condition_colombia | (enrollment_df["country"] != "Colombia")]
+
+# Costa Rica
+#-----------------
+# Enrollment from 3-5 yo were asked from 2006
+condition_costa_rica = enrollment_df.apply(
+    lambda row: row["country"] == "Costa Rica" and str(row["year"]).isdigit() and int(row["year"]) >= 2006, axis=1
+)
+
+# Apply the condition for Costa Rica
+enrollment_df = enrollment_df[condition_costa_rica | (enrollment_df["country"] != "Costa Rica")]
+
+# Dominican Rep.
+#------------------
+# 2000 is an arbitrary cutoff. When a change in the methodology happened.
+condition_dominican_rep = enrollment_df.apply(
+    lambda row: row["country"] == "Dominican Rep." and str(row["year"]).isdigit() and int(row["year"]) >= 2000, axis=1
+)
+
+# Apply the condition for Dominican Rep.
+enrollment_df = enrollment_df[condition_dominican_rep | (enrollment_df["country"] != "Dominican Rep.")]
+
+# Ecuador
+# ------------
+# Data from 2003, when ENEMDU stated
+condition_ecuador = enrollment_df.apply(
+    lambda row: row["country"] == "Ecuador" and str(row["year"]).isdigit() and int(row["year"]) >= 2003, axis=1
+)
+
+# Apply the condition for Ecuador 
+enrollment_df = enrollment_df[condition_ecuador | (enrollment_df["country"] != "Ecuador")]
+
+# El Salvador
+#--------------
+condition_el_salvador = enrollment_df.apply(
+    lambda row: row["country"] == "El Salvador" and str(row["year"]).isdigit() and int(row["year"]) >= 2000, axis=1
+)
+
+# Apply the condition for El Salvador
+enrollment_df = enrollment_df[condition_el_salvador | (enrollment_df["country"] != "El Salvador")]
+
+# Guatemala
+#-------------
+# We remove 2002, 2003 and 2004 because they are from another survey.
+
+condition_guatemala = enrollment_df.apply(
+    lambda row: row["country"] == "Guatemala" and str(row["year"]).isdigit(),
+    axis=1
+)
+
+# Apply the condition for Guatemala
+enrollment_df = enrollment_df[condition_guatemala | (enrollment_df["country"] != "Guatemala")]
+# Removing 2002, 2003, and 2004.
+enrollment_df = enrollment_df[~((enrollment_df["country"] == "Guatemala") & (enrollment_df['year'].isin(["2002", "2003", "2004"])))]
+
+# Honduras
+# -----------
+# We keep information from 2001 since INE
+condition_honduras = enrollment_df.apply(
+    lambda row: row["country"] == "Honduras" and str(row["year"]).isdigit() and int(row["year"]) >= 2001, axis=1
+)
+
+# Apply the condition for Honduras
+enrollment_df = enrollment_df[condition_honduras | (enrollment_df["country"] != "Honduras")]
+
+
+# Mexico
+#------------
+# In 2016 there was a new methodology
+condition_mexico = enrollment_df.apply(
+    lambda row: row["country"] == "Mexico" and str(row["year"]).isdigit(),
+    axis=1
+)
+
+# Apply the condition for Mexico
+enrollment_df = enrollment_df[condition_mexico | (enrollment_df["country"] != "Mexico")]
+
+# Nicaragua
+#-------------
+condition_nicaragua = enrollment_df.apply(
+    lambda row: row["country"] == "Nicaragua" and str(row["year"]).isdigit(),
+    axis=1
+)
+
+# Apply the condition for Nicaragua
+enrollment_df = enrollment_df[condition_nicaragua | (enrollment_df["country"] != "Nicaragua")]
+
+# Panama
+# -----------
+# Note: from 2010 onwards they ask enrollment from 4yo, before it was 5 yo.
+condition_panama = enrollment_df.apply(
+    lambda row: row["country"] == "Panama" and str(row["year"]).isdigit(),
+    axis=1
+)
+
+# Apply the condition for Panama
+enrollment_df = enrollment_df[condition_panama | (enrollment_df["country"] != "Panama")]
+
+# Paraguay
+#-----------
+condition_paraguay = enrollment_df.apply(
+    lambda row: row["country"] == "Paraguay" and str(row["year"]).isdigit(),
+    axis=1
+)
+
+# Apply the condition for Paraguay
+enrollment_df = enrollment_df[condition_paraguay | (enrollment_df["country"] != "Paraguay")]
+
+# Peru
+#-----------
+# Ehano had many changes between 2000 and 2003. Maybe is better to use from 2003 onwards, but the CCT was implemented in 2005.
+
+condition_peru = enrollment_df.apply(
+    lambda row: row["country"] == "Peru" and str(row["year"]).isdigit(),
+    axis=1
+)
+
+# Apply the condition for Peru
+enrollment_df = enrollment_df[condition_peru | (enrollment_df["country"] != "Peru")]
+
+# Uruguay
+# ---------
+
+national_index = enrollment_df[(enrollment_df["country"] == "Uruguay") & (enrollment_df["year"] == "National")].index
+
+# Define the condition for Uruguay
+condition_uruguay = enrollment_df.apply(
+    lambda row: (
+        row["country"] == "Uruguay" and str(row["year"]).isdigit() and (
+            (national_index.size > 0 and row.name > national_index[0] and 2006 <= int(row["year"])) 
+        )
+    ),
+    axis=1
+)
+
+# Apply the condition for Uruguay
+enrollment_df = enrollment_df[condition_uruguay | (enrollment_df["country"] != "Uruguay")]
+
+# Venezuela
+# ------------
+enrollment_df = enrollment_df[~((enrollment_df["country"] == "Venezuela") & (enrollment_df["year"] == "Venezuela"))]
+
+enrollment_df['year'] = pd.to_numeric(enrollment_df['year'], errors='coerce')
+
+# Save data into CSV file
+enrollment_df.to_csv("data/cleaned_enrollment.csv", index=False)
+```
+
+```{python}
+# List of countries with conditional cash transfers (CCT)
+cct_countries = {
+    "Country": ["Brazil", "Mexico", "Colombia", "Argentina", "Chile", "Peru", "Paraguay"],
+    "Conditional Transfer Programs": [
+        "Bolsa Família", 
+        "Progresa/Oportunidades/Prospera", 
+        "Familias en Acción", 
+        "Asignación Universal por Hijo", 
+        "Chile Solidario", 
+        "Juntos", 
+        "Tekoporã"
+    ],
+    "Year": [2003, 1997, 2001, 2009, 2002, 2005, 2005]
+}
+
+# Dataframe
+cct_countries = pd.DataFrame(cct_countries)
+
+```
+
+# Cleaning Literacy data
+
+```{python}
+literacy_raw = pd.read_excel(
+    "data/2024_Act1_literacy_LAC.xlsx", sheet_name="area")
+
+# Removing the headers
+literacy_df = literacy_raw[5:]
+
+# Removing columns with all NAs
+literacy_df = literacy_df.dropna(axis=1, how="all")
+
+# All Latam countries in the dataset
+countries_latam = [
+    'Argentina', 'Bolivia', 'Brazil', 'Chile', 'Colombia', 'Costa Rica', 'Dominican Rep.', 'Ecuador', 'El Salvador', 'Guatemala', 'Honduras', 'Mexico', 'Nicaragua', 'Panama', 'Paraguay', 'Peru', 'Uruguay', 'Venezuela'
+]
+
+# Function to extract countries in a new column from the dataset
+def match_country(value):
+    value = str(value).strip()  
+    if value in countries_latam:
+        return value  
+    return None 
+
+# Extract the countries in a new columns:
+literacy_df["country"] = literacy_df['Unnamed: 0'].apply(match_country)
+
+# Repeat country names for each row they correspond
+literacy_df["country"] = literacy_df["country"].fillna(method='ffill')
+
+# Order the columns
+cols = ['country'] + [col for col in literacy_df.columns if col != 'country']
+literacy_df = literacy_df[cols]
+
+# Rename columns
+literacy_df.columns = [
+    'country',
+    'year',
+    'literacy15_24_rural',
+    'literacy15_24_urban',
+    'literacy25_65_rural',
+    'literacy25_65_urban',
+    'literacy65_more_rural',
+    'literacy65_more_urban'
+]
+
+# Choosing the years/surveys for each country
+literacy_df["year"] = literacy_df["year"].astype(str).str.strip()
+
+# Argentina
+#----------
+# We are using the Continuous Permanent Household Survey (EPHC: Encuesta Permanente de Hogares) second semester, which start in 2003 in the dataset. 
+
+condition_argentina = (
+    (literacy_df["country"] == "Argentina") &
+    # From 2003-II to 2022-II
+    (literacy_df["year"].astype(str).str.contains(r"^200[3-9]|20[1-9][0-9]")) & 
+    (literacy_df["year"].astype(str).str.endswith("-II"))
+)
+# Apply this condition to Argentina
+literacy_df = literacy_df[condition_argentina | (literacy_df["country"] != "Argentina")]
+
+# Remove the sufix "-II" 
+literacy_df.loc[
+    (literacy_df["country"] == "Argentina") & (literacy_df["year"].str.endswith("-II")),
+    "year"
+] = literacy_df["year"].str.replace("-II", "", regex=False)
+
+
+# Bolivia
+#----------
+# We are keeping from 2011 onwards
+condition_bolivia = literacy_df.apply(
+    lambda row: row["country"] == "Bolivia" and str(row["year"]).isdigit() and int(row["year"]) >= 2011, axis=1
+)
+
+# Apply the condition for Bolivia
+literacy_df = literacy_df[condition_bolivia | (literacy_df["country"] != "Bolivia")]
+
+# Brazil
+#----------
+# These two index identify the changes in the datasets. We are following:
+# From 1995 to 2003 under the New PNAD. They ask enrollment to all individuals
+# From 2004 to 2011 under the New PNAD With Rural North. 
+# From 2012 onwards under the PNADC. They capture enrollment from 5 years old.
+
+with_rural_north_index = literacy_df[(literacy_df["country"] == "Brazil") & (literacy_df["year"] == "With Rural North")].index
+pnadc_index = literacy_df[(literacy_df["country"] == "Brazil") & (literacy_df["year"] == "PNADC")].index
+
+# Define the condition for Brazil
+condition_brazil = literacy_df.apply(
+    lambda row: (
+        row["country"] == "Brazil" and str(row["year"]).isdigit() and (
+            (1995 <= int(row["year"]) <= 2003) or
+            (with_rural_north_index.size > 0 and row.name > with_rural_north_index[0] and 2004 <= int(row["year"]) <= 2011) or
+            (pnadc_index.size > 0 and row.name > pnadc_index[0] and 2012 <= int(row["year"]) <= 2022)
+        )
+    ),
+    axis=1
+)
+
+# Apply the condition for Brazil
+literacy_df = literacy_df[condition_brazil | (literacy_df["country"] != "Brazil")]
+
+# Chile
+# ---------
+# We are considering all available information. Not information for all years, every two years
+literacy_df = literacy_df[~((literacy_df["country"] == "Chile") & (literacy_df["year"] == "Chile"))]
+
+
+# Colombia
+# ----------
+# There is no information before the implementation of the CCT.
+# Data from 2001 to 2005 for ECH-National.
+# In 2008, a new dataset named GEIH-National is available. Gap of 2 years (2006 and 2007). 
+# There is a new methodology for the GEIH since 2021. 2021 and 2022 with new methodology is not considered. It would be just including one more year (2022).
+
+condition_colombia = literacy_df.apply(
+    lambda row: row["country"] == "Colombia" and str(row["year"]).isdigit(),
+    axis=1
+)
+
+# Apply the condition for Colombia
+literacy_df = literacy_df[condition_colombia | (literacy_df["country"] != "Colombia")]
+
+# Costa Rica
+#-----------------
+# Enrollment from 3-5 yo were asked from 2006
+condition_costa_rica = literacy_df.apply(
+    lambda row: row["country"] == "Costa Rica" and str(row["year"]).isdigit() and int(row["year"]) >= 2006, axis=1
+)
+
+# Apply the condition for Costa Rica
+literacy_df = literacy_df[condition_costa_rica | (literacy_df["country"] != "Costa Rica")]
+
+# Dominican Rep.
+#------------------
+# 2000 is an arbitrary cutoff. When a change in the methodology happened.
+condition_dominican_rep = literacy_df.apply(
+    lambda row: row["country"] == "Dominican Rep." and str(row["year"]).isdigit() and int(row["year"]) >= 2000, axis=1
+)
+
+# Apply the condition for Dominican Rep.
+literacy_df = literacy_df[condition_dominican_rep | (literacy_df["country"] != "Dominican Rep.")]
+
+# Ecuador
+# ------------
+# Data from 2003, when ENEMDU stated
+condition_ecuador = literacy_df.apply(
+    lambda row: row["country"] == "Ecuador" and str(row["year"]).isdigit() and int(row["year"]) >= 2003, axis=1
+)
+
+# Apply the condition for Ecuador 
+literacy_df = literacy_df[condition_ecuador | (literacy_df["country"] != "Ecuador")]
+
+# El Salvador
+#--------------
+condition_el_salvador = literacy_df.apply(
+    lambda row: row["country"] == "El Salvador" and str(row["year"]).isdigit() and int(row["year"]) >= 2000, axis=1
+)
+
+# Apply the condition for El Salvador
+literacy_df = literacy_df[condition_el_salvador | (literacy_df["country"] != "El Salvador")]
+
+# Guatemala
+#-------------
+# We remove 2002, 2003 and 2004 because they are from another survey.
+
+condition_guatemala = literacy_df.apply(
+    lambda row: row["country"] == "Guatemala" and str(row["year"]).isdigit(),
+    axis=1
+)
+
+# Apply the condition for Guatemala
+literacy_df = literacy_df[condition_guatemala | (literacy_df["country"] != "Guatemala")]
+# Removing 2002, 2003, and 2004.
+literacy_df = literacy_df[~((literacy_df["country"] == "Guatemala") & (literacy_df['year'].isin(["2002", "2003", "2004"])))]
+
+# Honduras
+# -----------
+# We keep information from 2001 since INE
+condition_honduras = literacy_df.apply(
+    lambda row: row["country"] == "Honduras" and str(row["year"]).isdigit() and int(row["year"]) >= 2001, axis=1
+)
+
+# Apply the condition for Honduras
+literacy_df = literacy_df[condition_honduras | (literacy_df["country"] != "Honduras")]
+
+
+# Mexico
+#------------
+# In 2016 there was a new methodology
+condition_mexico = literacy_df.apply(
+    lambda row: row["country"] == "Mexico" and str(row["year"]).isdigit(),
+    axis=1
+)
+
+# Apply the condition for Mexico
+literacy_df = literacy_df[condition_mexico | (literacy_df["country"] != "Mexico")]
+
+# Nicaragua
+#-------------
+condition_nicaragua = literacy_df.apply(
+    lambda row: row["country"] == "Nicaragua" and str(row["year"]).isdigit(),
+    axis=1
+)
+
+# Apply the condition for Nicaragua
+literacy_df = literacy_df[condition_nicaragua | (literacy_df["country"] != "Nicaragua")]
+
+# Panama
+# -----------
+# Note: from 2010 onwards they ask enrollment from 4yo, before it was 5 yo.
+condition_panama = literacy_df.apply(
+    lambda row: row["country"] == "Panama" and str(row["year"]).isdigit(),
+    axis=1
+)
+
+# Apply the condition for Panama
+literacy_df = literacy_df[condition_panama | (literacy_df["country"] != "Panama")]
+
+# Paraguay
+#-----------
+condition_paraguay = literacy_df.apply(
+    lambda row: row["country"] == "Paraguay" and str(row["year"]).isdigit(),
+    axis=1
+)
+
+# Apply the condition for Paraguay
+literacy_df = literacy_df[condition_paraguay | (literacy_df["country"] != "Paraguay")]
+
+# Peru
+#-----------
+# Ehano had many changes between 2000 and 2003. Maybe is better to use from 2003 onwards, but the CCT was implemented in 2005.
+
+condition_peru = literacy_df.apply(
+    lambda row: row["country"] == "Peru" and str(row["year"]).isdigit(),
+    axis=1
+)
+
+# Apply the condition for Peru
+literacy_df = literacy_df[condition_peru | (literacy_df["country"] != "Peru")]
+
+# Uruguay
+# ---------
+
+national_index = literacy_df[(literacy_df["country"] == "Uruguay") & (literacy_df["year"] == "National")].index
+
+# Define the condition for Uruguay
+condition_uruguay = literacy_df.apply(
+    lambda row: (
+        row["country"] == "Uruguay" and str(row["year"]).isdigit() and (
+            (national_index.size > 0 and row.name > national_index[0] and 2006 <= int(row["year"])) 
+        )
+    ),
+    axis=1
+)
+
+# Apply the condition for Uruguay
+literacy_df = literacy_df[condition_uruguay | (literacy_df["country"] != "Uruguay")]
+
+# Venezuela
+# ------------
+literacy_df = literacy_df[~((literacy_df["country"] == "Venezuela") & (literacy_df["year"] == "Venezuela"))]
+
+literacy_df['year'] = pd.to_numeric(literacy_df['year'], errors='coerce')
+
+# Save data into CSV file
+literacy_df.to_csv("data/cleaned_literacy.csv", index=False)
+```
+
+
+# Cleaning Years of education
+
+```{python}
+years_edu_raw = pd.read_excel(
+    "data/2024_Act1_years_edu_LAC.xlsx", sheet_name="area")
+
+# Removing the headers
+years_edu_df = years_edu_raw[5:]
+
+# Removing columns with all NAs
+years_edu_df = years_edu_df.dropna(axis=1, how="all")
+
+# All Latam countries in the dataset
+countries_latam = [
+    'Argentina', 'Bolivia', 'Brazil', 'Chile', 'Colombia', 'Costa Rica', 'Dominican Rep.', 'Ecuador', 'El Salvador', 'Guatemala', 'Honduras', 'Mexico', 'Nicaragua', 'Panama', 'Paraguay', 'Peru', 'Uruguay', 'Venezuela'
+]
+
+# Function to extract countries in a new column from the dataset
+def match_country(value):
+    value = str(value).strip()  
+    if value in countries_latam:
+        return value  
+    return None 
+
+# Extract the countries in a new columns:
+years_edu_df["country"] = years_edu_df['Unnamed: 0'].apply(match_country)
+
+# Repeat country names for each row they correspond
+years_edu_df["country"] = years_edu_df["country"].fillna(method='ffill')
+
+# Order the columns
+cols = ['country'] + [col for col in years_edu_df.columns if col != 'country']
+years_edu_df = years_edu_df[cols]
+
+# Rename columns
+years_edu_df.columns = [
+    'country',
+    'year',
+    'all_rural',
+    'all_urban',
+    'adult25_65_rural',
+    'adult25_65_urban',
+    'male_adult25_65_rural',
+    'male_adult25_65_urban',
+    'female_adult25_65_rural',
+    'female_adult25_65_urban'
+]
+
+# Choosing the years/surveys for each country
+years_edu_df["year"] = years_edu_df["year"].astype(str).str.strip()
+
+# Argentina
+#----------
+# We are using the Continuous Permanent Household Survey (EPHC: Encuesta Permanente de Hogares) second semester, which start in 2003 in the dataset. 
+
+condition_argentina = (
+    (years_edu_df["country"] == "Argentina") &
+    # From 2003-II to 2022-II
+    (years_edu_df["year"].astype(str).str.contains(r"^200[3-9]|20[1-9][0-9]")) & 
+    (years_edu_df["year"].astype(str).str.endswith("-II"))
+)
+# Apply this condition to Argentina
+years_edu_df = years_edu_df[condition_argentina | (years_edu_df["country"] != "Argentina")]
+
+# Remove the sufix "-II" 
+years_edu_df.loc[
+    (years_edu_df["country"] == "Argentina") & (years_edu_df["year"].str.endswith("-II")),
+    "year"
+] = years_edu_df["year"].str.replace("-II", "", regex=False)
+
+
+# Bolivia
+#----------
+# We are keeping from 2011 onwards
+condition_bolivia = years_edu_df.apply(
+    lambda row: row["country"] == "Bolivia" and str(row["year"]).isdigit() and int(row["year"]) >= 2011, axis=1
+)
+
+# Apply the condition for Bolivia
+years_edu_df = years_edu_df[condition_bolivia | (years_edu_df["country"] != "Bolivia")]
+
+# Brazil
+#----------
+# These two index identify the changes in the datasets. We are following:
+# From 1995 to 2003 under the New PNAD. They ask enrollment to all individuals
+# From 2004 to 2011 under the New PNAD With Rural North. 
+# From 2012 onwards under the PNADC. They capture enrollment from 5 years old.
+
+with_rural_north_index = years_edu_df[(years_edu_df["country"] == "Brazil") & (years_edu_df["year"] == "With Rural North")].index
+pnadc_index = years_edu_df[(years_edu_df["country"] == "Brazil") & (years_edu_df["year"] == "PNADC")].index
+
+# Define the condition for Brazil
+condition_brazil = years_edu_df.apply(
+    lambda row: (
+        row["country"] == "Brazil" and str(row["year"]).isdigit() and (
+            (1995 <= int(row["year"]) <= 2003) or
+            (with_rural_north_index.size > 0 and row.name > with_rural_north_index[0] and 2004 <= int(row["year"]) <= 2011) or
+            (pnadc_index.size > 0 and row.name > pnadc_index[0] and 2012 <= int(row["year"]) <= 2022)
+        )
+    ),
+    axis=1
+)
+
+# Apply the condition for Brazil
+years_edu_df = years_edu_df[condition_brazil | (years_edu_df["country"] != "Brazil")]
+
+# Chile
+# ---------
+# We are considering all available information. Not information for all years, every two years
+years_edu_df = years_edu_df[~((years_edu_df["country"] == "Chile") & (years_edu_df["year"] == "Chile"))]
+
+
+# Colombia
+# ----------
+# There is no information before the implementation of the CCT.
+# Data from 2001 to 2005 for ECH-National.
+# In 2008, a new dataset named GEIH-National is available. Gap of 2 years (2006 and 2007). 
+# There is a new methodology for the GEIH since 2021. 2021 and 2022 with new methodology is not considered. It would be just including one more year (2022).
+
+condition_colombia = years_edu_df.apply(
+    lambda row: row["country"] == "Colombia" and str(row["year"]).isdigit(),
+    axis=1
+)
+
+# Apply the condition for Colombia
+years_edu_df = years_edu_df[condition_colombia | (years_edu_df["country"] != "Colombia")]
+
+# Costa Rica
+#-----------------
+# Enrollment from 3-5 yo were asked from 2006
+condition_costa_rica = years_edu_df.apply(
+    lambda row: row["country"] == "Costa Rica" and str(row["year"]).isdigit() and int(row["year"]) >= 2006, axis=1
+)
+
+# Apply the condition for Costa Rica
+years_edu_df = years_edu_df[condition_costa_rica | (years_edu_df["country"] != "Costa Rica")]
+
+# Dominican Rep.
+#------------------
+# 2000 is an arbitrary cutoff. When a change in the methodology happened.
+condition_dominican_rep = years_edu_df.apply(
+    lambda row: row["country"] == "Dominican Rep." and str(row["year"]).isdigit() and int(row["year"]) >= 2000, axis=1
+)
+
+# Apply the condition for Dominican Rep.
+years_edu_df = years_edu_df[condition_dominican_rep | (years_edu_df["country"] != "Dominican Rep.")]
+
+# Ecuador
+# ------------
+# Data from 2003, when ENEMDU stated
+condition_ecuador = years_edu_df.apply(
+    lambda row: row["country"] == "Ecuador" and str(row["year"]).isdigit() and int(row["year"]) >= 2003, axis=1
+)
+
+# Apply the condition for Ecuador 
+years_edu_df = years_edu_df[condition_ecuador | (years_edu_df["country"] != "Ecuador")]
+
+# El Salvador
+#--------------
+condition_el_salvador = years_edu_df.apply(
+    lambda row: row["country"] == "El Salvador" and str(row["year"]).isdigit() and int(row["year"]) >= 2000, axis=1
+)
+
+# Apply the condition for El Salvador
+years_edu_df = years_edu_df[condition_el_salvador | (years_edu_df["country"] != "El Salvador")]
+
+# Guatemala
+#-------------
+# We remove 2002, 2003 and 2004 because they are from another survey.
+
+condition_guatemala = years_edu_df.apply(
+    lambda row: row["country"] == "Guatemala" and str(row["year"]).isdigit(),
+    axis=1
+)
+
+# Apply the condition for Guatemala
+years_edu_df = years_edu_df[condition_guatemala | (years_edu_df["country"] != "Guatemala")]
+# Removing 2002, 2003, and 2004.
+years_edu_df = years_edu_df[~((literacy_df["country"] == "Guatemala") & (years_edu_df['year'].isin(["2002", "2003", "2004"])))]
+
+# Honduras
+# -----------
+# We keep information from 2001 since INE
+condition_honduras = years_edu_df.apply(
+    lambda row: row["country"] == "Honduras" and str(row["year"]).isdigit() and int(row["year"]) >= 2001, axis=1
+)
+
+# Apply the condition for Honduras
+years_edu_df = years_edu_df[condition_honduras | (years_edu_df["country"] != "Honduras")]
+
+
+# Mexico
+#------------
+# In 2016 there was a new methodology
+condition_mexico = years_edu_df.apply(
+    lambda row: row["country"] == "Mexico" and str(row["year"]).isdigit(),
+    axis=1
+)
+
+# Apply the condition for Mexico
+years_edu_df = years_edu_df[condition_mexico | (years_edu_df["country"] != "Mexico")]
+
+# Nicaragua
+#-------------
+condition_nicaragua = years_edu_df.apply(
+    lambda row: row["country"] == "Nicaragua" and str(row["year"]).isdigit(),
+    axis=1
+)
+
+# Apply the condition for Nicaragua
+years_edu_df = years_edu_df[condition_nicaragua | (years_edu_df["country"] != "Nicaragua")]
+
+# Panama
+# -----------
+# Note: from 2010 onwards they ask enrollment from 4yo, before it was 5 yo.
+condition_panama = years_edu_df.apply(
+    lambda row: row["country"] == "Panama" and str(row["year"]).isdigit(),
+    axis=1
+)
+
+# Apply the condition for Panama
+years_edu_df = years_edu_df[condition_panama | (years_edu_df["country"] != "Panama")]
+
+# Paraguay
+#-----------
+condition_paraguay = years_edu_df.apply(
+    lambda row: row["country"] == "Paraguay" and str(row["year"]).isdigit(),
+    axis=1
+)
+
+# Apply the condition for Paraguay
+years_edu_df = years_edu_df[condition_paraguay | (years_edu_df["country"] != "Paraguay")]
+
+# Peru
+#-----------
+# Ehano had many changes between 2000 and 2003. Maybe is better to use from 2003 onwards, but the CCT was implemented in 2005.
+
+condition_peru = years_edu_df.apply(
+    lambda row: row["country"] == "Peru" and str(row["year"]).isdigit(),
+    axis=1
+)
+
+# Apply the condition for Peru
+years_edu_df = years_edu_df[condition_peru | (years_edu_df["country"] != "Peru")]
+
+# Uruguay
+# ---------
+
+national_index = years_edu_df[(years_edu_df["country"] == "Uruguay") & (years_edu_df["year"] == "National")].index
+
+# Define the condition for Uruguay
+condition_uruguay = years_edu_df.apply(
+    lambda row: (
+        row["country"] == "Uruguay" and str(row["year"]).isdigit() and (
+            (national_index.size > 0 and row.name > national_index[0] and 2006 <= int(row["year"])) 
+        )
+    ),
+    axis=1
+)
+
+# Apply the condition for Uruguay
+years_edu_df = years_edu_df[condition_uruguay | (years_edu_df["country"] != "Uruguay")]
+
+# Venezuela
+# ------------
+years_edu_df = years_edu_df[~((years_edu_df["country"] == "Venezuela") & (years_edu_df["year"] == "Venezuela"))]
+
+years_edu_df['year'] = pd.to_numeric(years_edu_df['year'], errors='coerce')
+
+# Save data into CSV file
+years_edu_df.to_csv("data/cleaned_years_edu.csv", index=False)
+```
+
+# Merging datasets
+
+```{python}
+merged_df = pd.merge(years_edu_df, enrollment_df, on=["country", "year"], how="inner")
+final_merged_df = pd.merge(merged_df, literacy_df, on=["country", "year"], how="inner")
+
+final_merged_df = pd.merge(final_merged_df, cct_countries, left_on=["country"], right_on=["country"], how="left")
+
+#Reorder columns
+column_order = ['country', 'year', 'year_cct', 'cct_name'] + [col for col in final_merged_df.columns if col not in ['country', 'year', 'year_cct', 'cct_name']]
+
+final_merged_df = final_merged_df[column_order]
+
+# Save data into CSV file
+final_merged_df.to_csv("data/cleaned_education.csv", index=False)
+
+```
+
+
