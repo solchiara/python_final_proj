@@ -53,6 +53,8 @@ else:
 # Note: Please update with the path of your folder and computer user.
 ```
 
+# Countries with CCT 
+
 ```{python}
 # List of countries with conditional cash transfers (CCT)
 cct_countries = {
@@ -71,13 +73,14 @@ cct_countries = {
 
 # Dataframe
 cct_countries = pd.DataFrame(cct_countries)
-cct_countries.to_csv("data/cct_countries.csv", index=False)
+cct_countries.to_csv("data/cleaned/cct_countries.csv", index=False)
 ```
 
+# Enrollment school data
 
 ```{python}
 enrollment_raw = pd.read_excel(
-    "data/2024_Act1_enrollment_LAC.xlsx", sheet_name="area")
+    "data/raw/2024_Act1_enrollment_LAC.xlsx", sheet_name="area")
 
 # Removing the headers
 enrollment_df = enrollment_raw[6:]
@@ -343,35 +346,13 @@ enrollment_df = enrollment_df[~((enrollment_df["country"] == "Venezuela") & (enr
 enrollment_df['year'] = pd.to_numeric(enrollment_df['year'], errors='coerce')
 
 # Save data into CSV file
-enrollment_df.to_csv("data/cleaned_enrollment.csv", index=False)
+# enrollment_df.to_csv("data/cleaned/cleaned_enrollment.csv", index=False)
 ```
-
-```{python}
-# List of countries with conditional cash transfers (CCT)
-cct_countries = {
-    "Country": ["Brazil", "Mexico", "Colombia", "Argentina", "Chile", "Peru", "Paraguay"],
-    "Conditional Transfer Programs": [
-        "Bolsa Família", 
-        "Progresa/Oportunidades/Prospera", 
-        "Familias en Acción", 
-        "Asignación Universal por Hijo", 
-        "Chile Solidario", 
-        "Juntos", 
-        "Tekoporã"
-    ],
-    "Year": [2003, 1997, 2001, 2009, 2002, 2005, 2005]
-}
-
-# Dataframe
-cct_countries = pd.DataFrame(cct_countries)
-
-```
-
 # Cleaning Literacy data
 
 ```{python}
 literacy_raw = pd.read_excel(
-    "data/2024_Act1_literacy_LAC.xlsx", sheet_name="area")
+    "data/raw/2024_Act1_literacy_LAC.xlsx", sheet_name="area")
 
 # Removing the headers
 literacy_df = literacy_raw[5:]
@@ -635,7 +616,7 @@ literacy_df = literacy_df[~((literacy_df["country"] == "Venezuela") & (literacy_
 literacy_df['year'] = pd.to_numeric(literacy_df['year'], errors='coerce')
 
 # Save data into CSV file
-literacy_df.to_csv("data/cleaned_literacy.csv", index=False)
+# literacy_df.to_csv("data/cleaned/cleaned_literacy.csv", index=False)
 ```
 
 
@@ -643,7 +624,7 @@ literacy_df.to_csv("data/cleaned_literacy.csv", index=False)
 
 ```{python}
 years_edu_raw = pd.read_excel(
-    "data/2024_Act1_years_edu_LAC.xlsx", sheet_name="area")
+    "data/raw/2024_Act1_years_edu_LAC.xlsx", sheet_name="area")
 
 # Removing the headers
 years_edu_df = years_edu_raw[5:]
@@ -677,14 +658,14 @@ years_edu_df = years_edu_df[cols]
 years_edu_df.columns = [
     'country',
     'year',
-    'all_rural',
-    'all_urban',
-    'adult25_65_rural',
-    'adult25_65_urban',
-    'male_adult25_65_rural',
-    'male_adult25_65_urban',
-    'female_adult25_65_rural',
-    'female_adult25_65_urban'
+    'years_edu_all_rural',
+    'years_edu_all_urban',
+    'years_edu_adult25_65_rural',
+    'years_edu_adult25_65_urban',
+    'years_edu_male_adult25_65_rural',
+    'years_edu_male_adult25_65_urban',
+    'years_edu_female_adult25_65_rural',
+    'years_edu_female_adult25_65_urban'
 ]
 
 # Choosing the years/surveys for each country
@@ -909,24 +890,217 @@ years_edu_df = years_edu_df[~((years_edu_df["country"] == "Venezuela") & (years_
 years_edu_df['year'] = pd.to_numeric(years_edu_df['year'], errors='coerce')
 
 # Save data into CSV file
-years_edu_df.to_csv("data/cleaned_years_edu.csv", index=False)
+# years_edu_df.to_csv("data/cleaned/cleaned_years_edu.csv", index=False)
 ```
 
 # Merging datasets
 
 ```{python}
 merged_df = pd.merge(years_edu_df, enrollment_df, on=["country", "year"], how="inner")
-final_merged_df = pd.merge(merged_df, literacy_df, on=["country", "year"], how="inner")
+education_merged_df = pd.merge(merged_df, literacy_df, on=["country", "year"], how="inner")
 
-final_merged_df = pd.merge(final_merged_df, cct_countries, left_on=["country"], right_on=["country"], how="left")
+# Merge with year and name of CCT
+education_merged_df = pd.merge(education_merged_df, cct_countries, left_on=["country"], right_on=["country"], how="left")
 
 #Reorder columns
-column_order = ['country', 'year', 'year_cct', 'cct_name'] + [col for col in final_merged_df.columns if col not in ['country', 'year', 'year_cct', 'cct_name']]
+column_order = ['country', 'year', 'year_cct', 'cct_name'] + [col for col in education_merged_df.columns if col not in ['country', 'year', 'year_cct', 'cct_name']]
 
-final_merged_df = final_merged_df[column_order]
+education_merged_df = education_merged_df[column_order]
 
 # Save data into CSV file
-final_merged_df.to_csv("data/cleaned_education.csv", index=False)
+education_merged_df.to_csv("data/cleaned/all_education.csv", index=False)
+```
+
+
+```{python}
+# As all the data sets on education have the same pattern for data cleaning: the structure of years and countries are the same for the three files. Then it is better to use a function.
+
+def clean_and_filter_data(file_path, sheet_name, header_row, column_names, conditions):
+    """
+    Cleans and filters the data for a given dataset based on specified conditions.
+
+    Args:
+    - file_path (str): Path to the Excel file.
+    - sheet_name (str): Name of the sheet in the Excel file.
+    - header_row (int): Row index where the headers start.
+    - column_names (list): List of column names to rename the dataset.
+    - conditions (dict): Dictionary containing filter conditions for each country.
+
+    Returns:
+    - pd.DataFrame: Cleaned and filtered DataFrame.
+    """
+    # Load raw data
+    raw_df = pd.read_excel(file_path, sheet_name=sheet_name)
+
+    # Remove headers and drop NA columns
+    df = raw_df[header_row:].dropna(axis=1, how="all")
+
+    # List of Latin American countries
+    countries_latam = [
+        'Argentina', 'Bolivia', 'Brazil', 'Chile', 'Colombia', 'Costa Rica', 'Dominican Rep.', 
+        'Ecuador', 'El Salvador', 'Guatemala', 'Honduras', 'Mexico', 'Nicaragua', 
+        'Panama', 'Paraguay', 'Peru', 'Uruguay', 'Venezuela'
+    ]
+
+    # Extract country names
+    def match_country(value):
+        value = str(value).strip()
+        return value if value in countries_latam else None
+    df["country"] = df.iloc[:, 0].apply(match_country)
+
+    # Repeat the country name.
+    df["country"] = df["country"].fillna(method="ffill")
+
+    # Reorder and rename columns
+    cols = ["country"] + [col for col in df.columns if col != "country"]
+    df = df[cols]
+    df.columns = column_names
+
+    # Filter data based on conditions
+    for country, condition in conditions.items():
+        if country == "Argentina":
+            # Special handling for "-II" suffix
+            df.loc[
+                (df["country"] == country) & (df["year"].str.endswith("-II")),
+                "year"
+            ] = df["year"].str.replace("-II", "", regex=False)
+        df = df[condition(df) | (df["country"] != country)]
+    
+    # Convert year column to numeric, coercing errors to NaN
+    df["year"] = pd.to_numeric(df["year"], errors="coerce")
+    
+    return df
+
+# Inputs for the function depending on the datasets:
+#---------------------------------------------------
+# Define the column names for enrollment dataset.
+enrollment_columns = [
+    'country', 'year', 'enrollment3_5yo_rural', 'enrollment3_5yo_urban',
+    'enrollment6_12yo_rural', 'enrollment6_12yo_urban', 'enrollment13_17yo_rural',
+    'enrollment13_17yo_urban', 'enrollment18_23yo_rural', 'enrollment18_23yo_urban'
+]
+
+# Define the column names for literacy dataset
+literacy_columns = [
+    'country', 'year', 'literacy15_24_rural', 'literacy15_24_urban',
+    'literacy25_65_rural', 'literacy25_65_urban', 'literacy65_more_rural',
+    'literacy65_more_urban'
+]
+
+# Define filter conditions as lambda functions
+# This is the most important part of the data cleaning. Here is decided which dataset per each country is used.
+conditions = {
+    "Argentina": lambda df: (
+        (df["country"] == "Argentina") &
+        df["year"].astype(str).str.contains(r"^200[3-9]|20[1-9][0-9]") &
+        df["year"].astype(str).str.endswith("-II")
+    ),
+    "Bolivia": lambda df: (
+        (df["country"] == "Bolivia") &
+        df["year"].apply(lambda x: x.isdigit() and int(x) >= 2011) 
+    ),
+    "Brazil": lambda df: (
+        (df["country"] == "Brazil") &
+        df["year"].str.isdigit() &
+        (
+            ((1995 <= df["year"].astype(int)) & (df["year"].astype(int) <= 2003)) |
+            ((with_rural_north_index.size > 0) &
+             (df.index > with_rural_north_index[0]) &
+             (2004 <= df["year"].astype(int)) & (df["year"].astype(int) <= 2011)) |
+            ((pnadc_index.size > 0) &
+             (df.index > pnadc_index[0]) &
+             (2012 <= df["year"].astype(int)) & (df["year"].astype(int) <= 2022))
+        )
+    ),
+    "Chile": lambda df: ~(
+        (df["country"] == "Chile") & (df["year"] == "Chile")
+    ),
+    "Colombia": lambda df: (
+        (df["country"] == "Colombia") &
+        df["year"].str.isdigit() &
+        (~df["year"].astype(int).isin([2021, 2022]))
+    ),
+    "Costa Rica": lambda df: (
+        (df["country"] == "Costa Rica") &
+        df["year"].str.isdigit() &
+        (df["year"].astype(int) >= 2006)
+    ),
+    "Dominican Rep.": lambda df: (
+        (df["country"] == "Dominican Rep.") &
+        df["year"].str.isdigit() &
+        (df["year"].astype(int) >= 2000)
+    ),
+    "Ecuador": lambda df: (
+        (df["country"] == "Ecuador") &
+        df["year"].str.isdigit() &
+        (df["year"].astype(int) >= 2003)
+    ),
+    "El Salvador": lambda df: (
+        (df["country"] == "El Salvador") &
+        df["year"].str.isdigit() &
+        (df["year"].astype(int) >= 2000)
+    ),
+    "Guatemala": lambda df: (
+        (df["country"] == "Guatemala") &
+        df["year"].str.isdigit() &
+        (~df["year"].astype(int).isin([2002, 2003, 2004]))
+    ),
+    "Honduras": lambda df: (
+        (df["country"] == "Honduras") &
+        df["year"].str.isdigit() &
+        (df["year"].astype(int) >= 2001)
+    ),
+    "Mexico": lambda df: (
+        (df["country"] == "Mexico") &
+        df["year"].str.isdigit()
+    ),
+    "Nicaragua": lambda df: (
+        (df["country"] == "Nicaragua") &
+        df["year"].str.isdigit()
+    ),
+    "Panama": lambda df: (
+        (df["country"] == "Panama") &
+        df["year"].str.isdigit()
+    ),
+    "Paraguay": lambda df: (
+        (df["country"] == "Paraguay") &
+        df["year"].str.isdigit()
+    ),
+    "Peru": lambda df: (
+        (df["country"] == "Peru") &
+        df["year"].str.isdigit()
+    ),
+    "Uruguay": lambda df: (
+        (df["country"] == "Uruguay") &
+        df["year"].str.isdigit() &
+        ((national_index.size > 0) & (df.index > national_index[0]) & (df["year"].astype(int) >= 2006))
+    ),
+    "Venezuela": lambda df: ~(
+        (df["country"] == "Venezuela") & (df["year"] == "Venezuela")
+    )
+}
+
+# Clean and filter the enrollment dataset
+enrollment_df = clean_and_filter_data(
+    file_path="data/raw/2024_Act1_enrollment_LAC.xlsx", 
+    sheet_name="area", 
+    header_row=6, 
+    column_names=enrollment_columns, 
+    conditions=conditions
+)
+
+# Clean and filter the literacy dataset
+literacy_df = clean_and_filter_data(
+    file_path="data/raw/2024_Act1_literacy_LAC.xlsx", 
+    sheet_name="area", 
+    header_row=5, 
+    column_names=literacy_columns, 
+    conditions=conditions
+)
+
+# Save cleaned data to CSV files
+enrollment_df.to_csv("data/cleaned/cleaned_enrollment.csv", index=False)
+literacy_df.to_csv("data/cleaned/cleaned_literacy.csv", index=False)
 
 ```
 
