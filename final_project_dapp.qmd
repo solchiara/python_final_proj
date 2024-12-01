@@ -40,8 +40,8 @@ username = os.getlogin()
 # Define paths for each user of this project
 paths = {
     "Cristian": r"C:\Users\Cristian\Documents\GitHub\ppha30538_fall2024\python_final_proj",
-    "solch": r"C:\Users\solch\OneDrive\Documentos\2024 - autumn quarter\python II\python_final_proj"
-    # Clau
+    "solch": r"C:\Users\solch\OneDrive\Documentos\2024 - autumn quarter\python II\python_final_proj",
+    "clfel": r"C:\Users\clfel\Documents\GitHub\Python II\python_final_proj"
 }
 
 # Changing wd depending on the user:
