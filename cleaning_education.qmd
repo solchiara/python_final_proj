@@ -40,7 +40,8 @@ username = os.getlogin()
 # Define paths for each user of this project
 paths = {
     "Cristian": r"C:\Users\Cristian\Documents\GitHub\ppha30538_fall2024\python_final_proj",
-    "solch": r"C:\Users\solch\OneDrive\Documentos\2024 - autumn quarter\python II\python_final_proj"
+    "solch": r"C:\Users\solch\OneDrive\Documentos\2024 - autumn quarter\python II\python_final_proj",
+    "clfel": r"C:\Users\clfel\Documents\GitHub\Python II\python_final_proj"
 }
 
 # Changing wd depending on the user:
@@ -117,7 +118,7 @@ enrollment_df.columns = [
     'enrollment3_5yo_rural',
     'enrollment3_5yo_urban',
     'enrollment6_12yo_rural',
-    'enrollment6_12_yo_urban',
+    'enrollment6_12yo_urban',
     'enrollment13_17yo_rural',
     'enrollment13_17yo_urban',
     'enrollment18_23yo_rural',
@@ -195,8 +196,15 @@ enrollment_df = enrollment_df[~((enrollment_df["country"] == "Chile") & (enrollm
 # In 2008, a new dataset named GEIH-National is available. Gap of 2 years (2006 and 2007). 
 # There is a new methodology for the GEIH since 2021. 2021 and 2022 with new methodology is not considered. It would be just including one more year (2022).
 
+new_meth_index = enrollment_df[(enrollment_df["country"] == "Colombia") & (enrollment_df["year"] == "New Methodology")].index
+
+# Define the condition for Colombia
 condition_colombia = enrollment_df.apply(
-    lambda row: row["country"] == "Colombia" and str(row["year"]).isdigit(),
+    lambda row: (
+        row["country"] == "Colombia" and str(row["year"]).isdigit() and (
+            (new_meth_index.size > 0 and row.name < new_meth_index[0]) 
+        )
+    ),
     axis=1
 )
 
@@ -226,8 +234,16 @@ enrollment_df = enrollment_df[condition_dominican_rep | (enrollment_df["country"
 # Ecuador
 # ------------
 # Data from 2003, when ENEMDU stated
+enemdu_index = enrollment_df[(enrollment_df["country"] == "Ecuador") & (enrollment_df["year"] == "ENEMDU")].index
+
+# Define the condition for Ecuador
 condition_ecuador = enrollment_df.apply(
-    lambda row: row["country"] == "Ecuador" and str(row["year"]).isdigit() and int(row["year"]) >= 2003, axis=1
+    lambda row: (
+        row["country"] == "Ecuador" and str(row["year"]).isdigit() and (
+            (enemdu_index.size > 0 and row.name > enemdu_index[0] and 2003 <= int(row["year"])) 
+        )
+    ),
+    axis=1
 )
 
 # Apply the condition for Ecuador 
@@ -312,17 +328,28 @@ enrollment_df = enrollment_df[condition_paraguay | (enrollment_df["country"] != 
 # Peru
 #-----------
 # Ehano had many changes between 2000 and 2003. Maybe is better to use from 2003 onwards, but the CCT was implemented in 2005.
+enaho2_index = enrollment_df[(enrollment_df["country"] == "Peru") & (enrollment_df["year"] == "ENAHO 2")].index
+
+enaho3_index = enrollment_df[(enrollment_df["country"] == "Peru") & (enrollment_df["year"] == "ENAHO 3")].index
 
 condition_peru = enrollment_df.apply(
-    lambda row: row["country"] == "Peru" and str(row["year"]).isdigit(),
+    lambda row: (
+        row["country"] == "Peru" and (
+        str(row["year"]).isdigit() and (
+            (enaho2_index.size > 0 and row.name > enaho2_index[0] and int(row["year"]) <= 2002 ) 
+        )) or ( str(row["year"]).isdigit() and (
+            (enaho3_index.size > 0 and row.name > enaho3_index[0] and 2003 <= int(row["year"]))
+        ))
+    ),
     axis=1
 )
+
 
 # Apply the condition for Peru
 enrollment_df = enrollment_df[condition_peru | (enrollment_df["country"] != "Peru")]
 
 # Uruguay
-# ---------
+# -------
 
 national_index = enrollment_df[(enrollment_df["country"] == "Uruguay") & (enrollment_df["year"] == "National")].index
 
@@ -465,8 +492,15 @@ literacy_df = literacy_df[~((literacy_df["country"] == "Chile") & (literacy_df["
 # In 2008, a new dataset named GEIH-National is available. Gap of 2 years (2006 and 2007). 
 # There is a new methodology for the GEIH since 2021. 2021 and 2022 with new methodology is not considered. It would be just including one more year (2022).
 
+new_meth_index = literacy_df[(literacy_df["country"] == "Colombia") & (literacy_df["year"] == "New Methodology")].index
+
+# Define the condition for Colombia
 condition_colombia = literacy_df.apply(
-    lambda row: row["country"] == "Colombia" and str(row["year"]).isdigit(),
+    lambda row: (
+        row["country"] == "Colombia" and str(row["year"]).isdigit() and (
+            (new_meth_index.size > 0 and row.name < new_meth_index[0]) 
+        )
+    ),
     axis=1
 )
 
@@ -485,9 +519,23 @@ literacy_df = literacy_df[condition_costa_rica | (literacy_df["country"] != "Cos
 
 # Dominican Rep.
 #------------------
-# 2000 is an arbitrary cutoff. When a change in the methodology happened.
+
+enft2_index = literacy_df[(literacy_df["country"] == "Dominican Rep.") & (literacy_df["year"] == "ENFT 2")].index
+enft3_index = literacy_df[(literacy_df["country"] == "Dominican Rep.") & (literacy_df["year"] == "ENFT 3")].index
+ecnft_index = literacy_df[(literacy_df["country"] == "Dominican Rep.") & (literacy_df["year"] == "ECNFT")].index
+
 condition_dominican_rep = literacy_df.apply(
-    lambda row: row["country"] == "Dominican Rep." and str(row["year"]).isdigit() and int(row["year"]) >= 2000, axis=1
+    lambda row: (
+        row["country"] == "Dominican Rep." and (
+        str(row["year"]).isdigit() and (
+            (enft2_index.size > 0 and row.name > enft2_index[0] and int(row["year"]) <= 2004 ) 
+        )) or ( str(row["year"]).isdigit() and (
+            (enft3_index.size > 0 and row.name > enft3_index[0] and int(row["year"]) <= 2015)
+        )) or ( str(row["year"]).isdigit() and (
+            (ecnft_index.size > 0 and row.name > ecnft_index[0])
+        ))
+    ),
+    axis=1
 )
 
 # Apply the condition for Dominican Rep.
@@ -496,8 +544,16 @@ literacy_df = literacy_df[condition_dominican_rep | (literacy_df["country"] != "
 # Ecuador
 # ------------
 # Data from 2003, when ENEMDU stated
+enemdu_index = literacy_df[(literacy_df["country"] == "Ecuador") & (literacy_df["year"] == "ENEMDU")].index
+
+# Define the condition for Ecuador
 condition_ecuador = literacy_df.apply(
-    lambda row: row["country"] == "Ecuador" and str(row["year"]).isdigit() and int(row["year"]) >= 2003, axis=1
+    lambda row: (
+        row["country"] == "Ecuador" and str(row["year"]).isdigit() and (
+            (enemdu_index.size > 0 and row.name > enemdu_index[0] and 2003 <= int(row["year"])) 
+        )
+    ),
+    axis=1
 )
 
 # Apply the condition for Ecuador 
@@ -583,8 +639,18 @@ literacy_df = literacy_df[condition_paraguay | (literacy_df["country"] != "Parag
 #-----------
 # Ehano had many changes between 2000 and 2003. Maybe is better to use from 2003 onwards, but the CCT was implemented in 2005.
 
+enaho2_index = literacy_df[(literacy_df["country"] == "Peru") & (literacy_df["year"] == "ENAHO 2")].index
+enaho3_index = literacy_df[(literacy_df["country"] == "Peru") & (literacy_df["year"] == "ENAHO 3")].index
+
 condition_peru = literacy_df.apply(
-    lambda row: row["country"] == "Peru" and str(row["year"]).isdigit(),
+    lambda row: (
+        row["country"] == "Peru" and (
+        str(row["year"]).isdigit() and (
+            (enaho2_index.size > 0 and row.name > enaho2_index[0] and int(row["year"]) <= 2002 ) 
+        )) or ( str(row["year"]).isdigit() and (
+            (enaho3_index.size > 0 and row.name > enaho3_index[0] and 2003 <= int(row["year"]))
+        ))
+    ),
     axis=1
 )
 
@@ -739,8 +805,15 @@ years_edu_df = years_edu_df[~((years_edu_df["country"] == "Chile") & (years_edu_
 # In 2008, a new dataset named GEIH-National is available. Gap of 2 years (2006 and 2007). 
 # There is a new methodology for the GEIH since 2021. 2021 and 2022 with new methodology is not considered. It would be just including one more year (2022).
 
+new_meth_index = years_edu_df[(years_edu_df["country"] == "Colombia") & (years_edu_df["year"] == "New Methodology")].index
+
+# Define the condition for Colombia
 condition_colombia = years_edu_df.apply(
-    lambda row: row["country"] == "Colombia" and str(row["year"]).isdigit(),
+    lambda row: (
+        row["country"] == "Colombia" and str(row["year"]).isdigit() and (
+            (new_meth_index.size > 0 and row.name < new_meth_index[0]) 
+        )
+    ),
     axis=1
 )
 
@@ -759,9 +832,22 @@ years_edu_df = years_edu_df[condition_costa_rica | (years_edu_df["country"] != "
 
 # Dominican Rep.
 #------------------
-# 2000 is an arbitrary cutoff. When a change in the methodology happened.
+enft2_index = years_edu_df[(years_edu_df["country"] == "Dominican Rep.") & (years_edu_df["year"] == "ENFT 2")].index
+enft3_index = years_edu_df[(years_edu_df["country"] == "Dominican Rep.") & (years_edu_df["year"] == "ENFT 3")].index
+ecnft_index = years_edu_df[(years_edu_df["country"] == "Dominican Rep.") & (years_edu_df["year"] == "ECNFT")].index
+
 condition_dominican_rep = years_edu_df.apply(
-    lambda row: row["country"] == "Dominican Rep." and str(row["year"]).isdigit() and int(row["year"]) >= 2000, axis=1
+    lambda row: (
+        row["country"] == "Dominican Rep." and (
+        str(row["year"]).isdigit() and (
+            (enft2_index.size > 0 and row.name > enft2_index[0] and int(row["year"]) <= 2004 ) 
+        )) or ( str(row["year"]).isdigit() and (
+            (enft3_index.size > 0 and row.name > enft3_index[0] and int(row["year"]) <= 2015)
+        )) or ( str(row["year"]).isdigit() and (
+            (ecnft_index.size > 0 and row.name > ecnft_index[0])
+        ))
+    ),
+    axis=1
 )
 
 # Apply the condition for Dominican Rep.
@@ -770,12 +856,20 @@ years_edu_df = years_edu_df[condition_dominican_rep | (years_edu_df["country"] !
 # Ecuador
 # ------------
 # Data from 2003, when ENEMDU stated
-condition_ecuador = years_edu_df.apply(
-    lambda row: row["country"] == "Ecuador" and str(row["year"]).isdigit() and int(row["year"]) >= 2003, axis=1
+enemdu_index = enrollment_df[(enrollment_df["country"] == "Ecuador") & (enrollment_df["year"] == "ENEMDU")].index
+
+# Define the condition for Ecuador
+condition_ecuador = enrollment_df.apply(
+    lambda row: (
+        row["country"] == "Ecuador" and str(row["year"]).isdigit() and (
+            (enemdu_index.size > 0 and row.name > enemdu_index[0] and 2003 <= int(row["year"])) 
+        )
+    ),
+    axis=1
 )
 
 # Apply the condition for Ecuador 
-years_edu_df = years_edu_df[condition_ecuador | (years_edu_df["country"] != "Ecuador")]
+enrollment_df = enrollment_df[condition_ecuador | (enrollment_df["country"] != "Ecuador")]
 
 # El Salvador
 #--------------
@@ -857,8 +951,18 @@ years_edu_df = years_edu_df[condition_paraguay | (years_edu_df["country"] != "Pa
 #-----------
 # Ehano had many changes between 2000 and 2003. Maybe is better to use from 2003 onwards, but the CCT was implemented in 2005.
 
+enaho2_index = years_edu_df[(years_edu_df["country"] == "Peru") & (years_edu_df["year"] == "ENAHO 2")].index
+enaho3_index = years_edu_df[(years_edu_df["country"] == "Peru") & (years_edu_df["year"] == "ENAHO 3")].index
+
 condition_peru = years_edu_df.apply(
-    lambda row: row["country"] == "Peru" and str(row["year"]).isdigit(),
+    lambda row: (
+        row["country"] == "Peru" and (
+        str(row["year"]).isdigit() and (
+            (enaho2_index.size > 0 and row.name > enaho2_index[0] and int(row["year"]) <= 2002 ) 
+        )) or ( str(row["year"]).isdigit() and (
+            (enaho3_index.size > 0 and row.name > enaho3_index[0] and 2003 <= int(row["year"]))
+        ))
+    ),
     axis=1
 )
 
@@ -907,201 +1011,11 @@ column_order = ['country', 'year', 'year_cct', 'cct_name'] + [col for col in edu
 
 education_merged_df = education_merged_df[column_order]
 
+# Check duplicates
+duplicates = education_merged_df[education_merged_df.duplicated(subset=['country', 'year'], keep=False)]
+# Display the duplicates
+print(duplicates)
+
 # Save data into CSV file
 education_merged_df.to_csv("data/cleaned/all_education.csv", index=False)
 ```
-
-
-```{python}
-# As all the data sets on education have the same pattern for data cleaning: the structure of years and countries are the same for the three files. Then it is better to use a function.
-
-def clean_and_filter_data(file_path, sheet_name, header_row, column_names, conditions):
-    """
-    Cleans and filters the data for a given dataset based on specified conditions.
-
-    Args:
-    - file_path (str): Path to the Excel file.
-    - sheet_name (str): Name of the sheet in the Excel file.
-    - header_row (int): Row index where the headers start.
-    - column_names (list): List of column names to rename the dataset.
-    - conditions (dict): Dictionary containing filter conditions for each country.
-
-    Returns:
-    - pd.DataFrame: Cleaned and filtered DataFrame.
-    """
-    # Load raw data
-    raw_df = pd.read_excel(file_path, sheet_name=sheet_name)
-
-    # Remove headers and drop NA columns
-    df = raw_df[header_row:].dropna(axis=1, how="all")
-
-    # List of Latin American countries
-    countries_latam = [
-        'Argentina', 'Bolivia', 'Brazil', 'Chile', 'Colombia', 'Costa Rica', 'Dominican Rep.', 
-        'Ecuador', 'El Salvador', 'Guatemala', 'Honduras', 'Mexico', 'Nicaragua', 
-        'Panama', 'Paraguay', 'Peru', 'Uruguay', 'Venezuela'
-    ]
-
-    # Extract country names
-    def match_country(value):
-        value = str(value).strip()
-        return value if value in countries_latam else None
-    df["country"] = df.iloc[:, 0].apply(match_country)
-
-    # Repeat the country name.
-    df["country"] = df["country"].fillna(method="ffill")
-
-    # Reorder and rename columns
-    cols = ["country"] + [col for col in df.columns if col != "country"]
-    df = df[cols]
-    df.columns = column_names
-
-    # Filter data based on conditions
-    for country, condition in conditions.items():
-        if country == "Argentina":
-            # Special handling for "-II" suffix
-            df.loc[
-                (df["country"] == country) & (df["year"].str.endswith("-II")),
-                "year"
-            ] = df["year"].str.replace("-II", "", regex=False)
-        df = df[condition(df) | (df["country"] != country)]
-    
-    # Convert year column to numeric, coercing errors to NaN
-    df["year"] = pd.to_numeric(df["year"], errors="coerce")
-    
-    return df
-
-# Inputs for the function depending on the datasets:
-#---------------------------------------------------
-# Define the column names for enrollment dataset.
-enrollment_columns = [
-    'country', 'year', 'enrollment3_5yo_rural', 'enrollment3_5yo_urban',
-    'enrollment6_12yo_rural', 'enrollment6_12yo_urban', 'enrollment13_17yo_rural',
-    'enrollment13_17yo_urban', 'enrollment18_23yo_rural', 'enrollment18_23yo_urban'
-]
-
-# Define the column names for literacy dataset
-literacy_columns = [
-    'country', 'year', 'literacy15_24_rural', 'literacy15_24_urban',
-    'literacy25_65_rural', 'literacy25_65_urban', 'literacy65_more_rural',
-    'literacy65_more_urban'
-]
-
-# Define filter conditions as lambda functions
-# This is the most important part of the data cleaning. Here is decided which dataset per each country is used.
-conditions = {
-    "Argentina": lambda df: (
-        (df["country"] == "Argentina") &
-        df["year"].astype(str).str.contains(r"^200[3-9]|20[1-9][0-9]") &
-        df["year"].astype(str).str.endswith("-II")
-    ),
-    "Bolivia": lambda df: (
-        (df["country"] == "Bolivia") &
-        df["year"].apply(lambda x: x.isdigit() and int(x) >= 2011) 
-    ),
-    "Brazil": lambda df: (
-        (df["country"] == "Brazil") &
-        df["year"].str.isdigit() &
-        (
-            ((1995 <= df["year"].astype(int)) & (df["year"].astype(int) <= 2003)) |
-            ((with_rural_north_index.size > 0) &
-             (df.index > with_rural_north_index[0]) &
-             (2004 <= df["year"].astype(int)) & (df["year"].astype(int) <= 2011)) |
-            ((pnadc_index.size > 0) &
-             (df.index > pnadc_index[0]) &
-             (2012 <= df["year"].astype(int)) & (df["year"].astype(int) <= 2022))
-        )
-    ),
-    "Chile": lambda df: ~(
-        (df["country"] == "Chile") & (df["year"] == "Chile")
-    ),
-    "Colombia": lambda df: (
-        (df["country"] == "Colombia") &
-        df["year"].str.isdigit() &
-        (~df["year"].astype(int).isin([2021, 2022]))
-    ),
-    "Costa Rica": lambda df: (
-        (df["country"] == "Costa Rica") &
-        df["year"].str.isdigit() &
-        (df["year"].astype(int) >= 2006)
-    ),
-    "Dominican Rep.": lambda df: (
-        (df["country"] == "Dominican Rep.") &
-        df["year"].str.isdigit() &
-        (df["year"].astype(int) >= 2000)
-    ),
-    "Ecuador": lambda df: (
-        (df["country"] == "Ecuador") &
-        df["year"].str.isdigit() &
-        (df["year"].astype(int) >= 2003)
-    ),
-    "El Salvador": lambda df: (
-        (df["country"] == "El Salvador") &
-        df["year"].str.isdigit() &
-        (df["year"].astype(int) >= 2000)
-    ),
-    "Guatemala": lambda df: (
-        (df["country"] == "Guatemala") &
-        df["year"].str.isdigit() &
-        (~df["year"].astype(int).isin([2002, 2003, 2004]))
-    ),
-    "Honduras": lambda df: (
-        (df["country"] == "Honduras") &
-        df["year"].str.isdigit() &
-        (df["year"].astype(int) >= 2001)
-    ),
-    "Mexico": lambda df: (
-        (df["country"] == "Mexico") &
-        df["year"].str.isdigit()
-    ),
-    "Nicaragua": lambda df: (
-        (df["country"] == "Nicaragua") &
-        df["year"].str.isdigit()
-    ),
-    "Panama": lambda df: (
-        (df["country"] == "Panama") &
-        df["year"].str.isdigit()
-    ),
-    "Paraguay": lambda df: (
-        (df["country"] == "Paraguay") &
-        df["year"].str.isdigit()
-    ),
-    "Peru": lambda df: (
-        (df["country"] == "Peru") &
-        df["year"].str.isdigit()
-    ),
-    "Uruguay": lambda df: (
-        (df["country"] == "Uruguay") &
-        df["year"].str.isdigit() &
-        ((national_index.size > 0) & (df.index > national_index[0]) & (df["year"].astype(int) >= 2006))
-    ),
-    "Venezuela": lambda df: ~(
-        (df["country"] == "Venezuela") & (df["year"] == "Venezuela")
-    )
-}
-
-# Clean and filter the enrollment dataset
-enrollment_df = clean_and_filter_data(
-    file_path="data/raw/2024_Act1_enrollment_LAC.xlsx", 
-    sheet_name="area", 
-    header_row=6, 
-    column_names=enrollment_columns, 
-    conditions=conditions
-)
-
-# Clean and filter the literacy dataset
-literacy_df = clean_and_filter_data(
-    file_path="data/raw/2024_Act1_literacy_LAC.xlsx", 
-    sheet_name="area", 
-    header_row=5, 
-    column_names=literacy_columns, 
-    conditions=conditions
-)
-
-# Save cleaned data to CSV files
-enrollment_df.to_csv("data/cleaned/cleaned_enrollment.csv", index=False)
-literacy_df.to_csv("data/cleaned/cleaned_literacy.csv", index=False)
-
-```
-
-

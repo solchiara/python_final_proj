@@ -40,7 +40,8 @@ username = os.getlogin()
 # Define paths for each user of this project
 paths = {
     "Cristian": r"C:\Users\Cristian\Documents\GitHub\ppha30538_fall2024\python_final_proj",
-    "solch": r"C:\Users\solch\OneDrive\Documentos\2024 - autumn quarter\python II\python_final_proj"
+    "solch": r"C:\Users\solch\OneDrive\Documentos\2024 - autumn quarter\python II\python_final_proj",
+    "clfel": r"C:\Users\clfel\Documents\GitHub\Python II\python_final_proj"
 }
 
 # Changing wd depending on the user:
@@ -182,10 +183,18 @@ infrastructure_df = infrastructure_df[~((infrastructure_df["country"] == "Chile"
 # In 2008, a new dataset named GEIH-National is available. Gap of 2 years (2006 and 2007). 
 # There is a new methodology for the GEIH since 2021. 2021 and 2022 with new methodology is not considered. It would be just including one more year (2022).
 
+new_meth_index = infrastructure_df[(infrastructure_df["country"] == "Colombia") & (infrastructure_df["year"] == "New Methodology")].index
+
+# Define the condition for Colombia
 condition_colombia = infrastructure_df.apply(
-    lambda row: row["country"] == "Colombia" and str(row["year"]).isdigit(),
+    lambda row: (
+        row["country"] == "Colombia" and str(row["year"]).isdigit() and (
+            (new_meth_index.size > 0 and row.name < new_meth_index[0]) 
+        )
+    ),
     axis=1
 )
+
 
 # Apply the condition for Colombia
 infrastructure_df = infrastructure_df[condition_colombia | (infrastructure_df["country"] != "Colombia")]
@@ -202,10 +211,25 @@ infrastructure_df = infrastructure_df[condition_costa_rica | (infrastructure_df[
 
 # Dominican Rep.
 #------------------
-# 2000 is an arbitrary cutoff. When a change in the methodology happened.
+enft2_index = infrastructure_df[(infrastructure_df["country"] == "Dominican Rep.") & (infrastructure_df["year"] == "ENFT 2")].index
+enft3_index = infrastructure_df[(infrastructure_df["country"] == "Dominican Rep.") & (infrastructure_df["year"] == "ENFT 3")].index
+ecnft_index = infrastructure_df[(infrastructure_df["country"] == "Dominican Rep.") & (infrastructure_df["year"] == "ECNFT")].index
+
+
 condition_dominican_rep = infrastructure_df.apply(
-    lambda row: row["country"] == "Dominican Rep." and str(row["year"]).isdigit() and int(row["year"]) >= 2000, axis=1
+    lambda row: (
+        row["country"] == "Dominican Rep." and (
+        str(row["year"]).isdigit() and (
+            (enft2_index.size > 0 and row.name > enft2_index[0] and int(row["year"]) <= 2004 ) 
+        )) or ( str(row["year"]).isdigit() and (
+            (enft3_index.size > 0 and row.name > enft3_index[0] and int(row["year"]) <= 2015)
+        )) or ( str(row["year"]).isdigit() and (
+            (ecnft_index.size > 0 and row.name > ecnft_index[0])
+        ))
+    ),
+    axis=1
 )
+
 
 # Apply the condition for Dominican Rep.
 infrastructure_df = infrastructure_df[condition_dominican_rep | (infrastructure_df["country"] != "Dominican Rep.")]
@@ -213,8 +237,16 @@ infrastructure_df = infrastructure_df[condition_dominican_rep | (infrastructure_
 # Ecuador
 # ------------
 # Data from 2003, when ENEMDU stated
+enemdu_index = infrastructure_df[(infrastructure_df["country"] == "Ecuador") & (infrastructure_df["year"] == "ENEMDU")].index
+
+# Define the condition for Ecuador
 condition_ecuador = infrastructure_df.apply(
-    lambda row: row["country"] == "Ecuador" and str(row["year"]).isdigit() and int(row["year"]) >= 2003, axis=1
+    lambda row: (
+        row["country"] == "Ecuador" and str(row["year"]).isdigit() and (
+            (enemdu_index.size > 0 and row.name > enemdu_index[0] and 2003 <= int(row["year"])) 
+        )
+    ),
+    axis=1
 )
 
 # Apply the condition for Ecuador 
@@ -300,8 +332,18 @@ infrastructure_df = infrastructure_df[condition_paraguay | (infrastructure_df["c
 #-----------
 # Ehano had many changes between 2000 and 2003. Maybe is better to use from 2003 onwards, but the CCT was implemented in 2005.
 
+enaho2_index = infrastructure_df[(infrastructure_df["country"] == "Peru") & (infrastructure_df["year"] == "ENAHO 2")].index
+enaho3_index = infrastructure_df[(infrastructure_df["country"] == "Peru") & (infrastructure_df["year"] == "ENAHO 3")].index
+
 condition_peru = infrastructure_df.apply(
-    lambda row: row["country"] == "Peru" and str(row["year"]).isdigit(),
+    lambda row: (
+        row["country"] == "Peru" and (
+        str(row["year"]).isdigit() and (
+            (enaho2_index.size > 0 and row.name > enaho2_index[0] and int(row["year"]) <= 2002 ) 
+        )) or ( str(row["year"]).isdigit() and (
+            (enaho3_index.size > 0 and row.name > enaho3_index[0] and 2003 <= int(row["year"]))
+        ))
+    ),
     axis=1
 )
 
@@ -437,8 +479,15 @@ housing_df = housing_df[~((housing_df["country"] == "Chile") & (housing_df["year
 # In 2008, a new dataset named GEIH-National is available. Gap of 2 years (2006 and 2007). 
 # There is a new methodology for the GEIH since 2021. 2021 and 2022 with new methodology is not considered. It would be just including one more year (2022).
 
+new_meth_index = housing_df[(housing_df["country"] == "Colombia") & (housing_df["year"] == "New Methodology")].index
+
+# Define the condition for Colombia
 condition_colombia = housing_df.apply(
-    lambda row: row["country"] == "Colombia" and str(row["year"]).isdigit(),
+    lambda row: (
+        row["country"] == "Colombia" and str(row["year"]).isdigit() and (
+            (new_meth_index.size > 0 and row.name < new_meth_index[0]) 
+        )
+    ),
     axis=1
 )
 
@@ -457,9 +506,22 @@ housing_df = housing_df[condition_costa_rica | (housing_df["country"] != "Costa 
 
 # Dominican Rep.
 #------------------
-# 2000 is an arbitrary cutoff. When a change in the methodology happened.
+enft2_index = housing_df[(housing_df["country"] == "Dominican Rep.") & (housing_df["year"] == "ENFT 2")].index
+enft3_index = housing_df[(housing_df["country"] == "Dominican Rep.") & (housing_df["year"] == "ENFT 3")].index
+ecnft_index = housing_df[(housing_df["country"] == "Dominican Rep.") & (housing_df["year"] == "ECNFT")].index
+
 condition_dominican_rep = housing_df.apply(
-    lambda row: row["country"] == "Dominican Rep." and str(row["year"]).isdigit() and int(row["year"]) >= 2000, axis=1
+    lambda row: (
+        row["country"] == "Dominican Rep." and (
+        str(row["year"]).isdigit() and (
+            (enft2_index.size > 0 and row.name > enft2_index[0] and int(row["year"]) <= 2004 ) 
+        )) or ( str(row["year"]).isdigit() and (
+            (enft3_index.size > 0 and row.name > enft3_index[0] and int(row["year"]) <= 2015)
+        )) or ( str(row["year"]).isdigit() and (
+            (ecnft_index.size > 0 and row.name > ecnft_index[0])
+        ))
+    ),
+    axis=1
 )
 
 # Apply the condition for Dominican Rep.
@@ -467,9 +529,16 @@ housing_df = housing_df[condition_dominican_rep | (housing_df["country"] != "Dom
 
 # Ecuador
 # ------------
-# Data from 2003, when ENEMDU stated
+enemdu_index = housing_df[(housing_df["country"] == "Ecuador") & (housing_df["year"] == "ENEMDU")].index
+
+# Define the condition for Ecuador
 condition_ecuador = housing_df.apply(
-    lambda row: row["country"] == "Ecuador" and str(row["year"]).isdigit() and int(row["year"]) >= 2003, axis=1
+    lambda row: (
+        row["country"] == "Ecuador" and str(row["year"]).isdigit() and (
+            (enemdu_index.size > 0 and row.name > enemdu_index[0] and 2003 <= int(row["year"])) 
+        )
+    ),
+    axis=1
 )
 
 # Apply the condition for Ecuador 
@@ -555,8 +624,18 @@ housing_df = housing_df[condition_paraguay | (housing_df["country"] != "Paraguay
 #-----------
 # Ehano had many changes between 2000 and 2003. Maybe is better to use from 2003 onwards, but the CCT was implemented in 2005.
 
+enaho2_index = housing_df[(housing_df["country"] == "Peru") & (housing_df["year"] == "ENAHO 2")].index
+enaho3_index = housing_df[(housing_df["country"] == "Peru") & (housing_df["year"] == "ENAHO 3")].index
+
 condition_peru = housing_df.apply(
-    lambda row: row["country"] == "Peru" and str(row["year"]).isdigit(),
+    lambda row: (
+        row["country"] == "Peru" and (
+        str(row["year"]).isdigit() and (
+            (enaho2_index.size > 0 and row.name > enaho2_index[0] and int(row["year"]) <= 2002 ) 
+        )) or ( str(row["year"]).isdigit() and (
+            (enaho3_index.size > 0 and row.name > enaho3_index[0] and 2003 <= int(row["year"]))
+        ))
+    ),
     axis=1
 )
 
@@ -595,6 +674,11 @@ infrastructure_housing_df = pd.merge(infrastructure_housing_df, cct_countries, l
 column_order = ['country', 'year', 'year_cct', 'cct_name'] + [col for col in infrastructure_housing_df.columns if col not in ['country', 'year', 'year_cct', 'cct_name']]
 
 infrastructure_housing_df = infrastructure_housing_df[column_order]
+
+# Check duplicates
+duplicates = infrastructure_housing_df[infrastructure_housing_df.duplicated(subset=['country', 'year'], keep=False)]
+# Display the duplicates
+print(duplicates)
 
 # Save data into CSV file
 infrastructure_housing_df.to_csv("data/cleaned/all_infrastructure_housing.csv", index=False)
