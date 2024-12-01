@@ -1,6 +1,6 @@
 ---
 title: "Final project: Data and Programming for Public Policy II"
-author: "Cristian Bancayan, Sol Rivas & Claudia Felipe"
+author: "Cristian Bancayan, Sol Rivas Lopes & Claudia Felipe"
 date: "12-04-2024"
 format: 
   pdf:
@@ -21,6 +21,7 @@ output:
   eval: false
 ---
 
+# Set-up
 
 ```{python}
 #------------------------
@@ -62,6 +63,7 @@ else:
 # Note: Please update with the path of your folder and computer user.
 ```
 
+## Data cleaning and merging
 
 ```{python}
 # Open data
@@ -82,18 +84,28 @@ merged_edu_infra_data['cct_active'] = merged_edu_infra_data['cct_active'].astype
 # Filter countries with CCT
 countries_with_cct_df = merged_edu_infra_data[merged_edu_infra_data['year_cct'].notna()]
 
+# Correcting variable name so it is loopable
+countries_with_cct_df.rename(columns={"enrollment6_12_yo_urban": "enrollment6_12yo_urban"}, inplace=True)
+
 ```
 
-In this section, we create visualizations to compare the median values of key outcome variables over time between rural and urban areas for all Latin American countries with conditional cash transfer (CCT) programs, excluding Colombia. This approach allows us to observe trends and differences across regions, providing insights into the potential impact of CCT programs. By focusing on median values, we minimize the influence of outliers and better capture central tendencies in the data.
+
+# Country-Aggregated Education Outcomes over Time
+
+In this section, we create visualizations to compare the median values of key outcome variables over time between rural and urban areas for all Latin American countries with conditional cash transfer (CCT) programs, excluding Colombia. This approach allows us to observe trends and differences across the region, providing insights into the potential impact of CCT programs. By focusing on median values, we minimize the influence of outliers and better capture central tendencies in the data.
 
 
 ```{python}
+
 # List of outcomes to include in the analysis
-outcomes = ['years_edu_all', 'enrollment3_5yo', 'enrollment6_12yo', 'enrollment13_17yo']
+outcomes = ['years_edu_all', 'enrollment3_5yo',
+            'enrollment6_12yo', 'enrollment13_17yo']
 
 # Separate rural and urban data
-rural_data = countries_with_cct_df[['country', 'year', 'cct_active'] + [f"{var}_rural" for var in outcomes]].copy()
-urban_data = countries_with_cct_df[['country', 'year', 'cct_active'] + [f"{var}_urban" for var in outcomes]].copy()
+rural_data = countries_with_cct_df[[
+    'country', 'year', 'cct_active'] + [f"{var}_rural" for var in outcomes]].copy()
+urban_data = countries_with_cct_df[[
+    'country', 'year', 'cct_active'] + [f"{var}_urban" for var in outcomes]].copy()
 
 # Rename columns to unify structure
 rural_data.columns = ['country', 'year', 'cct_active'] + outcomes
@@ -116,6 +128,25 @@ aggregated_data = combined_data.melt(
     median_value=('value', 'median')
 ).reset_index()
 
+# Creating custom, informative titles for each plot
+custom_titles = {
+    'years_edu_all': 'Years of Education',
+    'enrollment3_5yo': 'Proportion of 3- to 5-year-olds Enrolled in School',
+    'enrollment6_12yo': 'Proportion of 6- to 12-year-olds Enrolled in School',
+    'enrollment13_17yo': 'Proportion of 13- to 17-year-olds Enrolled in School'
+}
+
+# Creating custom, informative y-axis titles for each plot
+custom_y = {
+    'years_edu_all': 'Years of Education',
+    'enrollment3_5yo': 'Enrollment (%)',
+    'enrollment6_12yo': 'Enrollment (%)',
+    'enrollment13_17yo': 'Enrollment (%)'
+}
+
+# List with all years of implementation
+cct_years = np.unique(countries_with_cct_df["year_cct"]).astype(int).tolist()
+
 # Loop through each variable and create a separate chart
 for var in outcomes:
     # Filter data for the current variable
@@ -123,19 +154,56 @@ for var in outcomes:
 
     # Create the chart
     chart = alt.Chart(data_for_var).mark_line(point=True).encode(
-        x=alt.X('year:O', axis=alt.Axis(title='Year')), 
-        y=alt.Y('median_value:Q', axis=alt.Axis(title='Median Value')),
-        color='area:N', 
+        x=alt.X('year:O', axis=alt.Axis(title='Year')),
+        y=alt.Y('median_value:Q', axis=alt.Axis(
+            title=f'Median {custom_y[var]}')),
+        color=alt.Color('area:N',
+                        legend=alt.Legend(title='Region Type',
+                                          labelFontSize=12,
+                                          titleFontSize=14),
+                        sort=['urban', 'rural']),
         tooltip=['year', 'median_value', 'area']
     ).properties(
         width=600,
         height=400,
-        title=f'Median {var.replace("_", " ").title()}: Rural vs Urban'
+        title=f"Median {custom_titles[var]}: Rural vs. Urban"
     )
 
+    vertical_lines = alt.Chart(pd.DataFrame({'year': cct_years})).mark_rule(
+        color='red',  # Color of the line
+        strokeDash=[4, 4]  # Dotted line style
+    ).encode(
+        x='year:O'
+    )
+
+    label = alt.Chart(pd.DataFrame({'year': [cct_years],
+                                    'label': ['Years when a CCT Program was first implemented']})
+                      ).mark_text(
+        align='right',
+        baseline='bottom',
+        dx=-5,  # Offset the label slightly to the right of the line
+        dy= 190,
+        color='red',
+        fontSize=10
+    ).encode(
+        x='year:O',
+        text='label'
+    )
+
+    # Combine the line chart and the vertical lines
+    final_chart = chart + vertical_lines + label
+
+    final_chart.show()
+
     # Save the chart as a PNG file
-    chart.save(f'{var}.png')
+    # chart.save(f'{var}.png')
+
+
+
 ```
+
+
+# Education outcomes by country and region type
 
 In this section, we analyze the mean values of key outcome variables across Latin American countries with conditional cash transfer (CCT) programs. We calculate the mean for each variable, distinguishing between rural and urban areas, and grouping by the presence or absence of CCT programs. This analysis provides insights into the average impact of CCT programs at the country level. 
 
@@ -153,28 +221,218 @@ aggregated_data = countries_with_cct_df.melt(
     mean_value=('value', 'mean')
 ).reset_index()
 
+
+aggregated_data['cct_active'] = aggregated_data['cct_active'].replace({0: 'Pre', 1: 'Post'})
+
+
+# Creating custom, informative titles for each plot
+custom_titles = {
+    'years_edu_all': 'Years of Education',
+    'enrollment3_5yo': 'Share of 3- to 5-year-olds Enrolled in School',
+    'enrollment6_12yo': 'Share of 6- to 12-year-olds Enrolled in School',
+    'enrollment13_17yo': 'Share of 13- to 17-year-olds Enrolled in School'
+}
+
+# Creating custom, informative y-axis titles for each plot
+custom_y = {
+    'years_edu_all': 'Years of Education',
+    'enrollment3_5yo': 'Enrollment (%)',
+    'enrollment6_12yo': 'Enrollment (%)',
+    'enrollment13_17yo': 'Enrollment (%)'
+}
+
 # Filter the data by each variable and create bar charts
 for var in outcomes:
     data_for_var = aggregated_data[
         (aggregated_data['variable'] == f"{var}_rural") | (aggregated_data['variable'] == f"{var}_urban")
     ]
-    
+
     chart = alt.Chart(data_for_var).mark_bar().encode(
-        x=alt.X('country:N', axis=alt.Axis(title='Country')),
-        y=alt.Y('mean_value:Q', axis=alt.Axis(title='Mean Value')),
-        color='cct_active:N',  
+        x=alt.X('country:N', axis=alt.Axis(title='Country'),
+                sort = ["Pre", "Post"]),
+        y=alt.Y('mean_value:Q', axis=alt.Axis(title= f'Mean {custom_y[var]}')),
+        color=alt.Color('cct_active:N', 
+                        legend=alt.Legend(title='Cash Transfer', 
+                                          labelFontSize=10, 
+                                          titleFontSize=10),
+                        sort = ["Pre", "Post"]), 
         column='variable:N', 
-        tooltip=['country', 'mean_value', 'cct_active', 'variable'],
+        tooltip=['country', 'mean_value', 'cct_active'],
         xOffset='cct_active:N'  
     ).properties(
         width=150,
         height=400,
-        title=f'Mean {var.replace("_", " ").title()} Before and After CCT'
+        title=f"Mean {custom_titles[var]}: Rural vs. Urban"
     )
 
+
+    chart.show()
+
+
     # Save the chart as a PNG file
-    chart.save(f'mean_{var}.png')
+    #chart.save(f'mean_{var}.png')
+
 ```
+
+
+
+# Differential growth in years of education and enrollment pre- and post-CCT, per country
+
+This section produces graphs showing the differential increse in education outcomes by country, disaggregated by region type.
+
+```{python}
+
+# Create an education df
+education_agg_df = countries_with_cct_df[['years_edu_all_urban',
+                                          'enrollment3_5yo_urban', 'enrollment6_12yo_urban', 'enrollment13_17yo_urban',
+                                          'years_edu_all_rural',
+                                          'enrollment3_5yo_rural',
+                                          'enrollment6_12yo_rural',
+                                          'enrollment13_17yo_rural',
+                                          'cct_active',
+                                          'country',
+                                          'year']]
+
+
+# Specify outcomes of interest
+
+outcomes = ['years_edu_all', 'enrollment3_5yo',
+            'enrollment6_12yo', 'enrollment13_17yo']
+
+# Compute the mean value for each combination of country, cct_active, and variable
+education_agg_df = education_agg_df.melt(
+    id_vars=['country', 'year', 'cct_active'],
+    value_vars=[f"{var}_rural" for var in outcomes] +
+    [f"{var}_urban" for var in outcomes],
+    var_name='variable',
+    value_name='value'
+).groupby(['country', 'cct_active', 'variable']).agg(
+    mean_value=('value', 'mean')
+).reset_index()
+
+# Pivot the table to separate cct_active == 1 and cct_active == 0
+pivot_df = education_agg_df.pivot_table(
+    index=['country', 'variable'],
+    columns='cct_active',
+    values='mean_value',
+    aggfunc='mean'
+).reset_index()
+
+# Rename columns more intuitively
+pivot_df.rename(columns={0: "Pre", 1: "Post"}, inplace=True)
+
+# Create a Rural/Urban variable
+pivot_df['rural_urban'] = pivot_df['variable'].apply(
+    lambda x: 'Urban' if 'urban' in x else 'Rural'
+)
+
+# Compute the difference between the mean values pre/post cct 
+pivot_df['mean_difference'] = pivot_df["Post"] - pivot_df["Pre"]
+
+
+#################################################
+################### PLOTTING ####################
+#################################################
+
+
+# Create custom, informative titles for each plot
+custom_titles = {
+    'years_edu_all': 'Years of Education',
+    'enrollment3_5yo': 'Share of Children Aged 3-5 Enrolled in School ',
+    'enrollment6_12yo': 'Share of Children Aged 6-12 Enrolled in School',
+    'enrollment13_17yo': 'Share of Teenagers Aged 13-17 Enrolled in School '
+}
+
+
+# Filter the data by each variable and create bar charts
+for var in outcomes:
+    data_for_var = pivot_df[pivot_df['variable'].str.contains(var)]
+
+    chart = alt.Chart(data_for_var).mark_bar().encode(
+        x=alt.X('country:N', title='Country'),
+        y=alt.Y('mean_difference:Q', title='Percentage Point Increase'),
+        color=alt.Color('rural_urban:N',
+                        legend=alt.Legend(title='Region Type',
+                                          labelFontSize=10,
+                                          titleFontSize=10)),
+        xOffset='rural_urban:N',  # Offset the bars to place them side by side
+        tooltip=['country', 'rural_urban', 'mean_difference']
+    ).properties(
+        width=300,
+        height=400,
+        title= f'Increase in {custom_titles[var]} Post Cash Transfer'
+    )
+
+    chart.show()
+
+
+
+```
+
+
+# Education and quality of dwellings
+
+```{python}
+
+
+
+chart = alt.Chart(countries_with_cct_df).mark_point().encode(
+    x=alt.X('years_edu_all_rural:Q', axis=alt.Axis(title='Years of Education')),
+    y=alt.Y('dwellings_low_quality_rural:Q', axis=alt.Axis(title='Share of Poor Dwellings')),
+    color=alt.Color('country:N', legend=alt.Legend(title='Country',
+                                          labelFontSize=10,
+                                          titleFontSize=10))
+).properties(
+    width=360,
+    height=360,
+    title="Poor Dwellings vs. Education"
+)
+
+
+chart.show()
+
+
+```
+
+# Quality of Dwellings post-CCT
+
+```{python}
+
+countries = ["Brazil", "Chile", "Mexico", "Peru", "Paraguay"]
+
+implementation_years = {"Brazil" : 2003,
+                         "Chile" : 2002,
+                         "Mexico": 1997,
+                         "Peru" : 2005,
+                         "Paraguay": 2005}
+
+
+for country in countries:
+    country_df = countries_with_cct_df[countries_with_cct_df["country"] == country]
+
+    chart = alt.Chart(country_df).mark_point().encode(
+        x=alt.X('year:O', axis=alt.Axis(title='Year')),  # Use ordinal for year
+        y=alt.Y('dwellings_low_quality_rural:Q',
+                axis=alt.Axis(title='Share of Poor Dwellings'))
+    ).properties(
+        width=360,
+        height=360,
+        title= f"Share of Poor Dwellings in {country}'s Rural Areas Before and After CCT Implementation"
+    )
+
+    vertical_line = alt.Chart(pd.DataFrame({'year': [implementation_years[country]]})).mark_rule(color='red').encode(
+        x='year:O'  # Ensure the year is treated as ordinal for the vertical line
+    )
+
+    plot = chart + vertical_line
+
+    plot.show()
+
+
+```
+
+
+# Regression Analysis
 
 In this section, we perform a correlation analysis to explore the relationships between key variables and the implementation of conditional cash transfer (CCT) programs. We separately analyze rural and urban areas, focusing on variables related to education outcomes, infrastructure, and living conditions.
 
@@ -208,7 +466,7 @@ print(f"Urban data shape: {cct_data_corr_urban.shape}")
 
 # Correlation analysis in rural areas
 # Exclude non-numeric columns for correlation analysis - rural
-numeric_columns_rural = cct_data_corr_rural.select_dtypes(include=['float64', 'int64']).columns
+numeric_columns_rural = cct_data_corr_rural.select_dtypes(include=['float64', "int64", 'int32']).columns
 correlation_matrix_rural = cct_data_corr_rural[numeric_columns_rural].corr()
 
 # Focus on correlations with `cct_active` in rural areas
@@ -218,7 +476,7 @@ print(cct_correlations_rural)
 
 # Correlation analysis in urban areas
 # Exclude non-numeric columns for correlation analysis - urban
-numeric_columns_urban = cct_data_corr_urban.select_dtypes(include=['float64', 'int64']).columns
+numeric_columns_urban = cct_data_corr_urban.select_dtypes(include=['float64', 'int64', "int32"]).columns
 correlation_matrix_urban = cct_data_corr_urban[numeric_columns_urban].corr()
 
 # Focus on correlations with `cct_active`
