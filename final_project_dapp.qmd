@@ -1,0 +1,55 @@
+---
+title: "Final project: Data and Programming for Public Policy II"
+author: "Cristian Bancayan, Sol Rivas & Claudia Felipe"
+date: "12-04-2024"
+format: 
+  pdf:
+    include-in-header: 
+       text: |
+         \usepackage{fvextra}
+         \DefineVerbatimEnvironment{Highlighting}{Verbatim}{breaklines,commandchars=\\\{\}}
+include-before-body:
+  text: |
+    \RecustomVerbatimEnvironment{verbatim}{Verbatim}{
+      showspaces = false,
+      showtabs = false,
+      breaksymbolleft={},
+      breaklines
+    }
+output:
+  echo: false
+  eval: false
+---
+
+```{python}
+#------------------------
+#       Settings
+#------------------------
+
+# Packages 
+#------------------------
+import os
+import pandas as pd
+import altair as alt
+
+
+# Working directory
+#------------------------
+username = os.getlogin()
+
+# Define paths for each user of this project
+paths = {
+    "Cristian": r"C:\Users\Cristian\Documents\GitHub\ppha30538_fall2024\python_final_proj",
+    "solch": r"C:\Users\solch\OneDrive\Documentos\2024 - autumn quarter\python II\python_final_proj",
+    "clfel": r"C:\Users\clfel\Documents\GitHub\Python II\python_final_proj"
+}
+
+# Changing wd depending on the user:
+if username in paths:
+    os.chdir(paths[username])
+    print(f"Directory changed to: {os.getcwd()}")
+else:
+    print(f"No predefined path for user: {username}")
+
+# Note: Please update with the path of your folder and computer user.
+```
