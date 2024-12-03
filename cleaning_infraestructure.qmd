@@ -663,6 +663,7 @@ housing_df['year'] = pd.to_numeric(housing_df['year'], errors='coerce')
 # housing_df.to_csv("data/cleaned/cleaned_housing.csv", index=False)
 ```
 
+# Merging datasets
 
 ```{python}
 infrastructure_housing_df = pd.merge(housing_df, infrastructure_df, on=["country", "year"], how="inner")

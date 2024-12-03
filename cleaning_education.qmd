@@ -856,10 +856,10 @@ years_edu_df = years_edu_df[condition_dominican_rep | (years_edu_df["country"] !
 # Ecuador
 # ------------
 # Data from 2003, when ENEMDU stated
-enemdu_index = enrollment_df[(enrollment_df["country"] == "Ecuador") & (enrollment_df["year"] == "ENEMDU")].index
+enemdu_index = years_edu_df[(years_edu_df["country"] == "Ecuador") & (years_edu_df["year"] == "ENEMDU")].index
 
 # Define the condition for Ecuador
-condition_ecuador = enrollment_df.apply(
+condition_ecuador = years_edu_df.apply(
     lambda row: (
         row["country"] == "Ecuador" and str(row["year"]).isdigit() and (
             (enemdu_index.size > 0 and row.name > enemdu_index[0] and 2003 <= int(row["year"])) 
@@ -869,7 +869,7 @@ condition_ecuador = enrollment_df.apply(
 )
 
 # Apply the condition for Ecuador 
-enrollment_df = enrollment_df[condition_ecuador | (enrollment_df["country"] != "Ecuador")]
+years_edu_df = years_edu_df[condition_ecuador | (years_edu_df["country"] != "Ecuador")]
 
 # El Salvador
 #--------------
@@ -892,7 +892,7 @@ condition_guatemala = years_edu_df.apply(
 # Apply the condition for Guatemala
 years_edu_df = years_edu_df[condition_guatemala | (years_edu_df["country"] != "Guatemala")]
 # Removing 2002, 2003, and 2004.
-years_edu_df = years_edu_df[~((literacy_df["country"] == "Guatemala") & (years_edu_df['year'].isin(["2002", "2003", "2004"])))]
+years_edu_df = years_edu_df[~((years_edu_df["country"] == "Guatemala") & (years_edu_df['year'].isin(["2002", "2003", "2004"])))]
 
 # Honduras
 # -----------
@@ -1019,3 +1019,11 @@ print(duplicates)
 # Save data into CSV file
 education_merged_df.to_csv("data/cleaned/all_education.csv", index=False)
 ```
+
+```{python}
+enrollment_df["country"].unique()
+literacy_df["country"].unique()
+years_edu_df["country"].unique()
+```
+
+
