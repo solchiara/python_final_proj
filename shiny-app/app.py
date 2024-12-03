@@ -1,30 +1,53 @@
 from shiny import App, render, ui, reactive
 import pandas as pd
 import matplotlib.pyplot as plt
+import itertools
 from matplotlib.ticker import FuncFormatter
 
-# Updated UI to allow multi-selection
+# Updated UI with title and inputs side-by-side
 app_ui = ui.page_fluid(
-    ui.input_selectize(
-        id='countries',
-        label='Choose one or more countries:',
-        choices=["Argentina", "Brazil", "Chile", "Mexico", "Paraguay", "Peru"],
-        multiple=True  # Allow multi-selection
+    # Layout: Inputs on the left, Title and Description on the right
+    ui.row(
+        # Left column: Inputs
+        ui.column(
+            6,  # Adjust column width as needed
+            ui.h2("Education and Housing Outcomes by Country"),
+            ui.p(
+                "This dashboard allows you to explore trends for various outcomes across different countries. The data originates from data obtained from Socio-Economic Datasets for Latin America and the Caribbean (SEDLAC), made available by the Center of Distributive, Labor and Social Studies from the National University of La Plata, in Argentina."
+
+                "This dashboard is a part of a larger project created for the Data and Programming for Public Policy II - Python Progamming course, at the Harris School of Public Policy. The graphs presented in this dashboard motivated our research question regarding the differential rural and  urban impacts of Conditional Cash Transfer Programs in Latin America."
+
+                "Use the inputs on the right to customize the visualization."
+            )
+        ),
+        # Right column: Title and Description
+        ui.column(
+        6,  # Adjust column width as needed
+            ui.input_selectize(
+                id='countries',
+                label='Choose one or more countries:',
+                choices=["Brazil", "Chile", "Mexico", "Paraguay", "Peru"],
+                multiple=True,
+                selected=["Brazil", "Peru"]  # Default selection
+            ),
+            ui.input_checkbox_group(
+                id='outcomes',
+                label='Choose one or more outcomes:',
+                choices=[
+                    "Years of Education: Rural Population",
+                    "Years of Education: Urban Population",
+                    "Rural School Enrollment, 6- to 12-year-olds",
+                    "Urban School Enrollment, 6- to 12-year-olds",
+                    "Rural School Enrollment, 13- to 17-year-olds",
+                    "Urban School Enrollment, 13- to 17-year-olds",
+                    "Low-Quality Urban Dwellings",
+                    "Low-Quality Rural Dwellings"
+                ],
+                selected=["Rural School Enrollment, 13- to 17-year-olds", "Urban School Enrollment, 13- to 17-year-olds"]  # Default selection
+            )
+        )
     ),
-    ui.input_checkbox_group(
-        id='outcomes',
-        label='Choose one or more outcomes:',
-        choices=[
-            "Years of Education: Rural Population",
-            "Years of Education: Urban Population",
-            "Rural School Enrollment, 6- to 12-year-olds",
-            "Urban School Enrollment, 6- to 12-year-olds",
-            "Rural School Enrollment, 13- to 17-year-olds",
-            "Urban School Enrollment, 13- to 17-year-olds",
-            "Low-Quality Urban Dwellings",
-            "Low-Quality Rural Dwellings"
-        ]
-    ),
+    # Output plot below the layout
     ui.output_plot('ts')
 )
 
@@ -51,12 +74,19 @@ def server(input, output, session):
     @render.plot
     def ts():
         df = subsetted_data()
-        selected_outcomes = input.outcomes() or []  # Handle no selection gracefully
+        selected_outcomes = input.outcomes() or []
         
         if df.empty or not selected_outcomes:
             return "No data available for the selected inputs."
         
         fig, ax = plt.subplots(figsize=(10, 8))
+        
+        # Define unique colors and line styles
+        colors = itertools.cycle(plt.cm.tab10.colors)  # Use Matplotlib's color palette
+        line_styles = itertools.cycle(["-", "--", "-.", ":"])  # Define line styles
+        
+        color_map = {country: next(colors) for country in input.countries()}
+        style_map = {outcome: next(line_styles) for outcome in selected_outcomes}
         
         for outcome in selected_outcomes:
             column_name = outcome_mapping[outcome]
@@ -65,21 +95,17 @@ def server(input, output, session):
                 ax.plot(
                     country_data['year'], 
                     country_data[column_name], 
-                    label=f'{country} - {outcome}'
+                    label=f'{country} - {outcome}',
+                    color=color_map[country], 
+                    linestyle=style_map[outcome]
                 )
-        
-        # Construct a dynamic title and axis labels
-        countries_text = ", ".join(input.countries())
-        outcomes_text = ", ".join(selected_outcomes)
         
         ax.tick_params(axis='x', rotation=45)
         ax.set_xlabel('Year')
         ax.set_ylabel("Values")
-        ax.set_title(f"Trends for {outcomes_text} in {countries_text}")
+        ax.set_title(f"Trends for {', '.join(selected_outcomes)} in {', '.join(input.countries())}")
         ax.legend(loc='upper left', bbox_to_anchor=(1.05, 1), fontsize='small')
         ax.yaxis.set_major_formatter(FuncFormatter(lambda x, _: f'{int(x):,}'))
-        fig.tight_layout()
         return fig
 
 app = App(app_ui, server)
-
