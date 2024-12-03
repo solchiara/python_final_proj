@@ -1,0 +1,755 @@
+---
+title: "Final project: Data and Programming for Public Policy II"
+author: "Cristian Bancayan, Sol Rivas Lopes & Claudia Felipe"
+date: "12-04-2024"
+format: 
+  pdf:
+    include-in-header: 
+       text: |
+         \usepackage{fvextra}
+         \DefineVerbatimEnvironment{Highlighting}{Verbatim}{breaklines,commandchars=\\\{\}}
+include-before-body:
+  text: |
+    \RecustomVerbatimEnvironment{verbatim}{Verbatim}{
+      showspaces = false,
+      showtabs = false,
+      breaksymbolleft={},
+      breaklines
+    }
+output:
+  echo: false
+  eval: false
+---
+
+# Set-up
+
+```{python}
+#------------------------
+#       Settings
+#------------------------
+
+# Packages 
+#------------------------
+import os
+import pandas as pd
+import altair as alt
+import numpy as np
+import altair as alt
+from altair_saver import save
+import pandas as pd
+import seaborn as sns
+import matplotlib.pyplot as plt
+from linearmodels.panel import PanelOLS
+import statsmodels.api as sm
+from scipy.stats import ttest_ind
+import statsmodels.formula.api as smf
+
+# Working directory
+#------------------------
+username = os.getlogin()
+
+# Define paths for each user of this project
+paths = {
+    "Cristian": r"C:\Users\Cristian\Documents\GitHub\ppha30538_fall2024\python_final_proj",
+    "solch": r"C:\Users\solch\OneDrive\Documentos\2024 - autumn quarter\python II\python_final_proj",
+    "clfel": r"C:\Users\clfel\Documents\GitHub\Python II\python_final_proj"
+}
+
+# Changing wd depending on the user:
+if username in paths:
+    os.chdir(paths[username])
+    print(f"Directory changed to: {os.getcwd()}")
+else:
+    print(f"No predefined path for user: {username}")
+
+# Note: Please update with the path of your folder and computer user.
+```
+
+## Data cleaning and merging
+
+```{python}
+# Open data
+education_data = pd.read_csv("all_education.csv")
+infrastructure_data = pd.read_csv("all_infrastructure_housing.csv")
+
+# Merge both datasets
+merged_edu_infra_data = pd.merge(education_data, infrastructure_data, on=['country', 'year', 'year_cct'], how='outer')
+
+# Exclude Colombia from the dataset (does not have info before CCT)
+merged_edu_infra_data = merged_edu_infra_data[
+    (merged_edu_infra_data['country'] != 'Colombia') & 
+    (merged_edu_infra_data['country'] != 'Argentina')
+]
+
+# Identify when they have the CCT: we create a dummy for the regression and analysis
+merged_edu_infra_data['year_cct'] = merged_edu_infra_data['year_cct'].replace(0, np.nan)
+merged_edu_infra_data['cct_active'] = (merged_edu_infra_data['year'] >= merged_edu_infra_data['year_cct']) & merged_edu_infra_data['year_cct'].notna()
+merged_edu_infra_data['cct_active'] = merged_edu_infra_data['cct_active'].astype(int)
+
+# Filter countries with CCT
+countries_with_cct_df = merged_edu_infra_data[merged_edu_infra_data['year_cct'].notna()]
+
+```
+
+
+# Country-Aggregated Education Outcomes over Time
+
+In this section, we create visualizations to compare the median values of key outcome variables over time between rural and urban areas for all Latin American countries with conditional cash transfer (CCT) programs, excluding Colombia and Argentina. This approach allows us to observe trends and differences across the region, providing insights into the potential impact of CCT programs. By focusing on median values, we minimize the influence of outliers and better capture central tendencies in the data.
+
+```{python}
+# List of outcomes to include in the analysis
+outcomes = ['years_edu_all', 'enrollment6_12yo', 'enrollment13_17yo']
+
+# Separate rural and urban data
+rural_data = countries_with_cct_df[[
+    'country', 'year', 'cct_active'] + [f"{var}_rural" for var in outcomes]].copy()
+urban_data = countries_with_cct_df[[
+    'country', 'year', 'cct_active'] + [f"{var}_urban" for var in outcomes]].copy()
+
+# Rename columns to unify structure
+rural_data.columns = ['country', 'year', 'cct_active'] + outcomes
+urban_data.columns = ['country', 'year', 'cct_active'] + outcomes
+
+# Add 'area' column to differentiate rural and urban
+rural_data['area'] = 'rural'
+urban_data['area'] = 'urban'
+
+# Combine both datasets
+combined_data = pd.concat([rural_data, urban_data], ignore_index=True)
+
+# Aggregate data: Calculate the median for each year and area for each variable
+aggregated_data = combined_data.melt(
+    id_vars=['country', 'year', 'cct_active', 'area'],
+    value_vars=outcomes,
+    var_name='variable',
+    value_name='value'
+).groupby(['year', 'area', 'variable']).agg(
+    median_value=('value', 'median')
+).reset_index()
+
+# Creating custom, informative titles for each plot
+custom_titles = {
+    'years_edu_all': 'Years of Education',
+    'enrollment6_12yo': 'Proportion of 6- to 12-year-olds Enrolled in School',
+    'enrollment13_17yo': 'Proportion of 13- to 17-year-olds Enrolled in School'
+}
+
+# Creating custom, informative y-axis titles for each plot
+custom_y = {
+    'years_edu_all': 'Years of Education',
+    'enrollment6_12yo': 'Enrollment (%)',
+    'enrollment13_17yo': 'Enrollment (%)'
+}
+
+# List with all years of implementation
+cct_years = np.unique(countries_with_cct_df["year_cct"]).astype(int).tolist()
+
+# Loop through each variable and create a separate chart
+for var in outcomes:
+    # Filter data for the current variable
+    data_for_var = aggregated_data[aggregated_data['variable'] == var]
+
+    # Create the chart
+    chart = alt.Chart(data_for_var).mark_line(point=True).encode(
+        x=alt.X('year:O', axis=alt.Axis(title='Year')),
+        y=alt.Y('median_value:Q', axis=alt.Axis(
+            title=f'Median {custom_y[var]}')),
+        color=alt.Color('area:N',
+                        scale=alt.Scale(domain=['urban', 'rural'],
+                                        range=['#363633', '#89a6a5']),  
+                        legend=alt.Legend(title='Region Type',
+                                          labelFontSize=12,
+                                          titleFontSize=14)),
+        tooltip=['year', 'median_value', 'area']
+    ).properties(
+        width=600,
+        height=400,
+        title=f"Median {custom_titles[var]}: Rural vs. Urban"
+    )
+
+    vertical_lines = alt.Chart(pd.DataFrame({'year': cct_years})).mark_rule(
+        color='red',  # Color of the line
+        strokeDash=[4, 4]  # Dotted line style
+    ).encode(
+        x='year:O'
+    )
+
+    label = alt.Chart(pd.DataFrame({'year': [cct_years],
+                                    'label': ['Years when a CCT Program was first implemented']})
+                      ).mark_text(
+        align='right',
+        baseline='bottom',
+        dx=-5,  # Offset the label slightly to the right of the line
+        dy=190,
+        color='red',
+        fontSize=10
+    ).encode(
+        x='year:O',
+        text='label'
+    )
+
+    # Combine the line chart and the vertical lines
+    final_chart = chart + vertical_lines + label
+
+    final_chart.show()
+
+    # Save the chart as a PNG file
+    chart.save(f'{var}.png')
+
+```
+
+
+# Education outcomes by country and region type
+
+In this section, we analyze the mean values of key outcome variables across Latin American countries with conditional cash transfer (CCT) programs. We calculate the mean for each variable, distinguishing between rural and urban areas, and grouping by the presence or absence of CCT programs. This analysis provides insights into the average impact of CCT programs at the country level. 
+
+```{python}
+# List of outcomes to include in the analysis
+outcomes = ['years_edu_all', 'enrollment6_12yo', 'enrollment13_17yo']
+
+# Aggregate data: Calculate the mean for each country and CCT state for each variable
+aggregated_data = countries_with_cct_df.melt(
+    id_vars=['country', 'year', 'cct_active'],
+    value_vars=[f"{var}_rural" for var in outcomes] + [f"{var}_urban" for var in outcomes],
+    var_name='variable',
+    value_name='value'
+).groupby(['country', 'cct_active', 'variable']).agg(
+    mean_value=('value', 'mean')
+).reset_index()
+
+aggregated_data['cct_active'] = aggregated_data['cct_active'].replace({0: 'Pre', 1: 'Post'})
+
+# Creating custom, informative titles for each plot
+custom_titles = {
+    'years_edu_all': 'Years of Education',
+    'enrollment6_12yo': 'Share of 6- to 12-year-olds Enrolled in School',
+    'enrollment13_17yo': 'Share of 13- to 17-year-olds Enrolled in School'
+}
+
+# Creating custom, informative y-axis titles for each plot
+custom_y = {
+    'years_edu_all': 'Years of Education',
+    'enrollment6_12yo': 'Enrollment (%)',
+    'enrollment13_17yo': 'Enrollment (%)'
+}
+
+# Filter the data by each variable and create bar charts
+for var in outcomes:
+    data_for_var = aggregated_data[
+        (aggregated_data['variable'] == f"{var}_rural") | (aggregated_data['variable'] == f"{var}_urban")
+    ]
+
+    chart = alt.Chart(data_for_var).mark_bar().encode(
+        x=alt.X('country:N', axis=alt.Axis(title='Country'),
+                sort=["Pre", "Post"]),
+        y=alt.Y('mean_value:Q', axis=alt.Axis(title=f'Mean {custom_y[var]}')),
+        color=alt.Color('cct_active:N',
+                        scale=alt.Scale(domain=['Pre', 'Post'],
+                                        range=['#363633', '#89a6a5']),  # Celeste and blue
+                        legend=alt.Legend(title='Cash Transfer',
+                                          labelFontSize=10,
+                                          titleFontSize=10),
+                        sort=["Pre", "Post"]),
+        column='variable:N',
+        tooltip=['country', 'mean_value', 'cct_active'],
+        xOffset='cct_active:N'
+    ).properties(
+        width=150,
+        height=400,
+        title=f"Mean {custom_titles[var]}: Rural vs. Urban"
+    )
+
+    chart.show()
+
+    # Save the chart as a PNG file
+    chart.save(f'mean_{var}.png')
+
+```
+
+# Differential growth in years of education and enrollment pre- and post-CCT, per country
+
+This section produces graphs showing the differential increse in education outcomes by country, disaggregated by region type.
+
+```{python}
+# Create an education df
+education_agg_df = countries_with_cct_df[['years_edu_all_urban',
+                                          'enrollment6_12yo_urban', 'enrollment13_17yo_urban',
+                                          'years_edu_all_rural',
+                                          'enrollment6_12yo_rural',
+                                          'enrollment13_17yo_rural',
+                                          'cct_active',
+                                          'country',
+                                          'year']]
+
+# Specify outcomes of interest
+outcomes = ['years_edu_all', 'enrollment6_12yo', 'enrollment13_17yo']
+
+# Compute the mean value for each combination of country, cct_active, and variable
+education_agg_df = education_agg_df.melt(
+    id_vars=['country', 'year', 'cct_active'],
+    value_vars=[f"{var}_rural" for var in outcomes] +
+    [f"{var}_urban" for var in outcomes],
+    var_name='variable',
+    value_name='value'
+).groupby(['country', 'cct_active', 'variable']).agg(
+    mean_value=('value', 'mean')
+).reset_index()
+
+# Pivot the table to separate cct_active == 1 and cct_active == 0
+pivot_df = education_agg_df.pivot_table(
+    index=['country', 'variable'],
+    columns='cct_active',
+    values='mean_value',
+    aggfunc='mean'
+).reset_index()
+
+# Rename columns more intuitively
+pivot_df.rename(columns={0: "Pre", 1: "Post"}, inplace=True)
+
+# Create a Rural/Urban variable
+pivot_df['rural_urban'] = pivot_df['variable'].apply(
+    lambda x: 'Urban' if 'urban' in x else 'Rural'
+)
+
+# Compute the difference between the mean values pre/post cct 
+pivot_df['mean_difference'] = pivot_df["Post"] - pivot_df["Pre"]
+
+#################################################
+################### PLOTTING ####################
+#################################################
+
+# Create custom, informative titles for each plot
+custom_titles = {
+    'years_edu_all': 'Years of Education',
+    'enrollment6_12yo': 'Share of Children Aged 6-12 Enrolled in School',
+    'enrollment13_17yo': 'Share of Teenagers Aged 13-17 Enrolled in School'
+}
+
+# Filter the data by each variable and create bar charts
+for var in outcomes:
+    data_for_var = pivot_df[pivot_df['variable'].str.contains(var)]
+
+    chart = alt.Chart(data_for_var).mark_bar().encode(
+        x=alt.X('country:N', title='Country'),
+        y=alt.Y('mean_difference:Q', title='Percentage Point Increase'),
+        color=alt.Color('rural_urban:N',
+                        scale=alt.Scale(domain=['Urban', 'Rural'],
+                                        range=['#363633', '#89a6a5']),  # Celeste and blue
+                        legend=alt.Legend(title='Region Type',
+                                          labelFontSize=10,
+                                          titleFontSize=10)),
+        xOffset='rural_urban:N',  # Offset the bars to place them side by side
+        tooltip=['country', 'rural_urban', 'mean_difference']
+    ).properties(
+        width=300,
+        height=400,
+        title=f'Increase in {custom_titles[var]} Post Cash Transfer'
+    )
+
+    chart.show()
+
+
+```
+
+# T-test 
+
+```{python}
+# Initialize a list to store the results
+diff_of_diff_results = []
+
+# Get the list of unique countries and variables
+countries = combined_data['country'].unique()
+variables = ['years_edu_all', 'enrollment6_12yo', 'enrollment13_17yo']
+
+for country in countries:
+    country_data = combined_data[combined_data['country'] == country]
+    
+    for variable in variables:
+        # Filter data for rural and urban areas
+        rural_data = country_data[country_data['area'] == 'rural']
+        urban_data = country_data[country_data['area'] == 'urban']
+        
+        # Separate data by cct_active (0 and 1) for rural and urban
+        rural_pre = rural_data[rural_data['cct_active'] == 0][variable]
+        rural_post = rural_data[rural_data['cct_active'] == 1][variable]
+        urban_pre = urban_data[urban_data['cct_active'] == 0][variable]
+        urban_post = urban_data[urban_data['cct_active'] == 1][variable]
+        
+        # Calculate the increments (Post - Pre) if data is available
+        if not rural_pre.empty and not rural_post.empty and not urban_pre.empty and not urban_post.empty:
+            rural_diff = rural_post.mean() - rural_pre.mean()
+            urban_diff = urban_post.mean() - urban_pre.mean()
+            
+            # Calculate the difference of differences
+            diff_of_diff = urban_diff - rural_diff
+            
+            # Perform a t-test between the increments
+            rural_increment = rural_post.values - rural_pre.mean()
+            urban_increment = urban_post.values - urban_pre.mean()
+            t_stat, p_val = ttest_ind(rural_increment, urban_increment, equal_var=False)
+            
+            diff_of_diff_results.append({
+                'Country': country,
+                'Variable': variable,
+                'Rural Increment': rural_diff,
+                'Urban Increment': urban_diff,
+                'Difference of Differences': diff_of_diff,
+                't-stat': t_stat,
+                'p-value': p_val
+            })
+
+# Convert the results to a DataFrame
+diff_of_diff_results_df = pd.DataFrame(diff_of_diff_results)
+
+# Save the results to a CSV file
+output_path = 'difference_of_differences_results.csv'  # Replace with your desired output path
+diff_of_diff_results_df.to_csv(output_path, index=False)
+
+# Display the results
+print("Difference of Differences Results:")
+print(diff_of_diff_results_df)
+
+```
+
+# T-test without empty observations
+
+```{python}
+# Eliminar filas con valores nulos en las variables clave
+filtered_data = combined_data.dropna(subset=['years_edu_all', 'enrollment6_12yo', 'enrollment13_17yo'])
+
+# Initialize a list to store the results
+diff_of_diff_results = []
+
+# Get the list of unique countries and variables
+countries = filtered_data['country'].unique()
+variables = ['years_edu_all', 'enrollment6_12yo', 'enrollment13_17yo']
+
+for country in countries:
+    country_data = filtered_data[filtered_data['country'] == country]
+    
+    for variable in variables:
+        # Filter data for rural and urban areas
+        rural_data = country_data[country_data['area'] == 'rural']
+        urban_data = country_data[country_data['area'] == 'urban']
+        
+        # Separate data by cct_active (0 and 1) for rural and urban
+        rural_pre = rural_data[rural_data['cct_active'] == 0][variable]
+        rural_post = rural_data[rural_data['cct_active'] == 1][variable]
+        urban_pre = urban_data[urban_data['cct_active'] == 0][variable]
+        urban_post = urban_data[urban_data['cct_active'] == 1][variable]
+        
+        # Calculate the increments (Post - Pre) if data is available
+        if not rural_pre.empty and not rural_post.empty and not urban_pre.empty and not urban_post.empty:
+            rural_diff = rural_post.mean() - rural_pre.mean()
+            urban_diff = urban_post.mean() - urban_pre.mean()
+            
+            # Calculate the difference of differences
+            diff_of_diff = urban_diff - rural_diff
+            
+            # Perform a t-test between the increments
+            rural_increment = rural_post.values - rural_pre.mean()
+            urban_increment = urban_post.values - urban_pre.mean()
+            t_stat, p_val = ttest_ind(rural_increment, urban_increment, equal_var=False)
+            
+            diff_of_diff_results.append({
+                'Country': country,
+                'Variable': variable,
+                'Rural Increment': rural_diff,
+                'Urban Increment': urban_diff,
+                'Difference of Differences': diff_of_diff,
+                't-stat': t_stat,
+                'p-value': p_val
+            })
+
+# Convert the results to a DataFrame
+diff_of_diff_results_df = pd.DataFrame(diff_of_diff_results)
+
+# Save the results to a CSV file
+output_path = 'difference_of_differences_results.csv'  # Replace with your desired output path
+diff_of_diff_results_df.to_csv(output_path, index=False)
+
+# Display the results
+print("Difference of Differences Results:")
+print(diff_of_diff_results_df)
+
+```
+
+# Education and quality of dwellings
+
+```{python}
+chart = alt.Chart(countries_with_cct_df).mark_point().encode(
+    x=alt.X('years_edu_all_rural:Q', axis=alt.Axis(title='Years of Education')),
+    y=alt.Y('dwellings_low_quality_rural:Q', axis=alt.Axis(title='Share of Poor Dwellings')),
+    color=alt.Color('country:N', legend=alt.Legend(title='Country',
+                                          labelFontSize=10,
+                                          titleFontSize=10))
+).properties(
+    width=360,
+    height=360,
+    title="Poor Dwellings vs. Education"
+)
+
+
+chart.show()
+
+
+```
+
+# Quality of Dwellings post-CCT
+
+```{python}
+
+countries = ["Brazil", "Chile", "Mexico", "Peru", "Paraguay"]
+
+implementation_years = {"Brazil" : 2003,
+                         "Chile" : 2002,
+                         "Mexico": 1997,
+                         "Peru" : 2005,
+                         "Paraguay": 2005}
+
+
+for country in countries:
+    country_df = countries_with_cct_df[countries_with_cct_df["country"] == country]
+
+    chart = alt.Chart(country_df).mark_point().encode(
+        x=alt.X('year:O', axis=alt.Axis(title='Year')),  # Use ordinal for year
+        y=alt.Y('dwellings_low_quality_rural:Q',
+                axis=alt.Axis(title='Share of Poor Dwellings'))
+    ).properties(
+        width=360,
+        height=360,
+        title= f"Share of Poor Dwellings in {country}'s Rural Areas Before and After CCT Implementation"
+    )
+
+    vertical_line = alt.Chart(pd.DataFrame({'year': [implementation_years[country]]})).mark_rule(color='red').encode(
+        x='year:O'  # Ensure the year is treated as ordinal for the vertical line
+    )
+
+    plot = chart + vertical_line
+
+    plot.show()
+
+
+```
+
+# Educational outcomes post CCT
+
+```{python}
+import pandas as pd
+import altair as alt
+
+countries = ["Brazil", "Chile", "Mexico", "Peru", "Paraguay"]
+
+# Year of CCT implementation for each country
+implementation_years = {
+    "Brazil": 2003,
+    "Chile": 2002,
+    "Mexico": 1997,
+    "Peru": 2005,
+    "Paraguay": 2005
+}
+
+# Education variables of interest
+education_vars = ['years_edu_all', 'enrollment6_12yo', 'enrollment13_17yo']
+
+# Custom titles for the variables
+custom_titles = {
+    'years_edu_all': 'Years of Education',
+    'enrollment6_12yo': 'Share of Children Aged 6-12 Enrolled in School',
+    'enrollment13_17yo': 'Share of Teenagers Aged 13-17 Enrolled in School'
+}
+
+# Loop to generate plots for each country and variable
+for country in countries:
+    country_df = countries_with_cct_df[countries_with_cct_df["country"] == country]
+
+    for var in education_vars:
+        # Generate plots for rural and urban areas
+        for area in ['rural', 'urban']:
+            area_var = f"{var}_{area}"
+            
+            chart = alt.Chart(country_df).mark_point().encode(
+                x=alt.X('year:O', axis=alt.Axis(title='Year')),  # Year as ordinal
+                y=alt.Y(f'{area_var}:Q',
+                        axis=alt.Axis(title=f'{custom_titles[var]} ({area.capitalize()})'),
+                        scale=alt.Scale(zero=False)),
+                tooltip=['year', area_var]
+            ).properties(
+                width=360,
+                height=360,
+                title=f"{custom_titles[var]} in {country}'s {area.capitalize()} Areas"
+            )
+
+            # Vertical line for the implementation year
+            vertical_line = alt.Chart(pd.DataFrame({'year': [implementation_years[country]]})).mark_rule(color='red').encode(
+                x='year:O'
+            )
+
+            # Combine the chart and the vertical line
+            plot = chart + vertical_line
+
+            # Display the plot
+            plot.show()
+
+```
+
+# Regression Analysis
+
+In this section, we perform a correlation analysis to explore the relationships between key variables and the implementation of conditional cash transfer (CCT) programs. We separately analyze rural and urban areas, focusing on variables related to education outcomes, infrastructure, and living conditions.
+
+```{python}
+# Relevant columns for rural and urban areas
+relevant_columns_rural = [
+    'cct_active', 'enrollment3_5yo_rural', 'enrollment6_12yo_rural',
+    'enrollment13_17yo_rural', 'years_edu_all_rural', 'water_rural',
+    'electricity_rural', 'hygienic_restrooms_rural', 'sewerage_rural',
+    'dwellings_low_quality_rural', 'country', 'year'
+]
+
+relevant_columns_urban = [
+    'cct_active', 'enrollment3_5yo_urban', 'enrollment6_12yo_urban',
+    'enrollment13_17yo_urban', 'years_edu_all_urban', 'water_urban',
+    'electricity_urban', 'hygienic_restrooms_urban', 'sewerage_urban',
+    'dwellings_low_quality_urban', 'country', 'year'
+]
+
+# Ensure valid columns are present
+relevant_columns_rural = [col for col in relevant_columns_rural if col in countries_with_cct_df.columns]
+relevant_columns_urban = [col for col in relevant_columns_urban if col in countries_with_cct_df.columns]
+
+# Filter datasets
+cct_data_corr_rural = countries_with_cct_df[relevant_columns_rural].dropna()
+cct_data_corr_urban = countries_with_cct_df[relevant_columns_urban].dropna()
+
+# Check dataset shapes
+print(f"Rural data shape: {cct_data_corr_rural.shape}")
+print(f"Urban data shape: {cct_data_corr_urban.shape}")
+
+# Correlation analysis in rural areas
+# Exclude non-numeric columns for correlation analysis - rural
+numeric_columns_rural = cct_data_corr_rural.select_dtypes(include=['float64', "int64", 'int32']).columns
+correlation_matrix_rural = cct_data_corr_rural[numeric_columns_rural].corr()
+
+# Focus on correlations with `cct_active` in rural areas
+cct_correlations_rural = correlation_matrix_rural['cct_active'].sort_values(ascending=False)
+print("\nCorrelations with CCT Active (Rural):")
+print(cct_correlations_rural)
+
+# Correlation analysis in urban areas
+# Exclude non-numeric columns for correlation analysis - urban
+numeric_columns_urban = cct_data_corr_urban.select_dtypes(include=['float64', 'int64', "int32"]).columns
+correlation_matrix_urban = cct_data_corr_urban[numeric_columns_urban].corr()
+
+# Focus on correlations with `cct_active`
+cct_correlations_urban = correlation_matrix_urban['cct_active'].sort_values(ascending=False)
+print("\nCorrelations with CCT Active (Urban):")
+print(cct_correlations_urban)
+```
+
+In this section, we conduct fixed effects regressions to examine the relationship between the implementation of conditional cash transfer (CCT) programs and key educational outcomes in rural and urban areas. The regressions are run separately for rural and urban datasets, allowing us to identify differences in the impact of CCT programs across these contexts. By using a fixed effects approach, we account for unobserved heterogeneity within countries over time, providing robust estimates of the effects of the CCT programs. 
+
+```{python}
+# Set the index (for fixed effects regression)
+cct_data_corr_rural = cct_data_corr_rural.set_index(['country', 'year'])
+cct_data_corr_urban = cct_data_corr_urban.set_index(['country', 'year'])
+
+# Explanatory variables for rural and urban
+explanatory_vars_rural = ['cct_active', 'electricity_rural', 'sewerage_rural',
+                          'hygienic_restrooms_rural', 'water_rural']
+explanatory_vars_urban = ['cct_active', 'electricity_urban', 'sewerage_urban',
+                          'hygienic_restrooms_urban', 'water_urban']
+
+# Outcome variables (including dwellings_low_quality)
+outcome_vars = ['years_edu_all', 'enrollment3_5yo', 'enrollment6_12yo', 'enrollment13_17yo', 
+                'dwellings_low_quality']
+
+# Function to fit the fixed effects model
+def run_fixed_effects(data, outcomes, explanatory_vars, region):
+    print(f"\n--- Fixed Effects Regressions for {region.capitalize()} Data ---\n")
+    for outcome in outcomes:
+        outcome_var = f"{outcome}_{region}"
+        if outcome_var in data.columns:
+            # Dependent and independent variables
+            y = data[outcome_var]
+            X = sm.add_constant(data[explanatory_vars])
+            
+            # Fit the model
+            model = PanelOLS(y, X, entity_effects=True).fit()
+            
+            # Display results
+            print(f"Fixed Effects Results for {outcome.capitalize()} ({region.capitalize()}):")
+            print(model.summary)
+            print("\n")
+        else:
+            print(f"Outcome variable '{outcome_var}' not found in {region} dataset.")
+
+# Run the regression for rural and urban data
+run_fixed_effects(cct_data_corr_rural, outcome_vars, explanatory_vars_rural, 'rural')
+run_fixed_effects(cct_data_corr_urban, outcome_vars, explanatory_vars_urban, 'urban')
+
+```
+
+# Dif in Dif
+
+
+```{python}
+
+
+# Function to perform Difference-in-Differences analysis
+def run_did_analysis(data, outcomes, region):
+    print(f"\n--- Difference-in-Differences Analysis for {region.capitalize()} Data ---\n")
+    results = []
+    
+    # Reset index temporarily to access 'year'
+    data = data.reset_index()
+    
+    for outcome in outcomes:
+        outcome_var = f"{outcome}_{region}"
+        
+        if outcome_var in data.columns:
+            # Define the pre/post indicator
+            data['post'] = data['year'] >= data['year'].median()  # Define pre/post as before/after median year
+            data['post'] = data['post'].astype(int)
+            
+            # Fit the DiD model
+            formula = f"{outcome_var} ~ cct_active + post + cct_active:post"
+            model = smf.ols(formula, data=data).fit()
+            
+            # Extract results for the interaction term
+            interaction_coeff = model.params.get('cct_active:post', None)
+            p_value = model.pvalues.get('cct_active:post', None)
+            
+            # Store results
+            results.append({
+                'Outcome': outcome_var,
+                'Interaction_Coeff': interaction_coeff,
+                'p-value': p_value
+            })
+            
+            # Display the summary
+            print(f"DiD Results for {outcome} ({region.capitalize()}):")
+            print(model.summary())
+            print("\n")
+        else:
+            print(f"Outcome variable '{outcome_var}' not found in {region} dataset.")
+    
+    # Return results as DataFrame
+    return pd.DataFrame(results)
+
+# Define datasets and outcomes
+outcomes = ['years_edu_all', 'enrollment6_12yo', 'enrollment13_17yo', 'dwellings_low_quality']
+regions = ['rural', 'urban']
+
+# Example for running the analysis
+did_results_rural = run_did_analysis(cct_data_corr_rural, outcomes, 'rural')
+did_results_urban = run_did_analysis(cct_data_corr_urban, outcomes, 'urban')
+
+# Combine results
+final_did_results = pd.concat([did_results_rural, did_results_urban])
+print("\nFinal DiD Results:")
+print(final_did_results)
+
+# Save results to CSV
+final_did_results.to_csv("did_results_with_dwellings.csv", index=False)
+
+```
