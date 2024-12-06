@@ -75,13 +75,13 @@ infrastructure_data = pd.read_csv("all_infrastructure_housing.csv")
 # Merge both datasets
 merged_edu_infra_data = pd.merge(education_data, infrastructure_data, on=['country', 'year', 'year_cct'], how='outer')
 
-# Exclude Colombia from the dataset (does not have info before CCT)
+# Exclude Colombia and Argentina from the dataset (does not have info before CCT)
 merged_edu_infra_data = merged_edu_infra_data[
     (merged_edu_infra_data['country'] != 'Colombia') & 
     (merged_edu_infra_data['country'] != 'Argentina')
 ]
 
-# Identify when they have the CCT: we create a dummy for the regression and analysis
+# Identify when they have the CCT: we create a dummy for the analysis
 merged_edu_infra_data['year_cct'] = merged_edu_infra_data['year_cct'].replace(0, np.nan)
 merged_edu_infra_data['cct_active'] = (merged_edu_infra_data['year'] >= merged_edu_infra_data['year_cct']) & merged_edu_infra_data['year_cct'].notna()
 merged_edu_infra_data['cct_active'] = merged_edu_infra_data['cct_active'].astype(int)
@@ -168,7 +168,7 @@ for var in outcomes:
     )
 
     vertical_lines = alt.Chart(pd.DataFrame({'year': cct_years})).mark_rule(
-        color='red',  # Color of the line
+        color='red',  
         strokeDash=[4, 4]  # Dotted line style
     ).encode(
         x='year:O'
@@ -179,7 +179,7 @@ for var in outcomes:
                       ).mark_text(
         align='right',
         baseline='bottom',
-        dx=-5,  # Offset the label slightly to the right of the line
+        dx=-5,  
         dy=190,
         color='red',
         fontSize=10
@@ -314,9 +314,7 @@ pivot_df['rural_urban'] = pivot_df['variable'].apply(
 # Compute the difference between the mean values pre/post cct 
 pivot_df['mean_difference'] = pivot_df["Post"] - pivot_df["Pre"]
 
-#################################################
-################### PLOTTING ####################
-#################################################
+########## Plot ############
 
 # Create custom, informative titles for each plot
 custom_titles = {
@@ -354,67 +352,7 @@ for var in outcomes:
 # T-test 
 
 ```{python}
-# Initialize a list to store the results
-diff_of_diff_results = []
-
-# Get the list of unique countries and variables
-countries = combined_data['country'].unique()
-variables = ['years_edu_all', 'enrollment6_12yo', 'enrollment13_17yo']
-
-for country in countries:
-    country_data = combined_data[combined_data['country'] == country]
-    
-    for variable in variables:
-        # Filter data for rural and urban areas
-        rural_data = country_data[country_data['area'] == 'rural']
-        urban_data = country_data[country_data['area'] == 'urban']
-        
-        # Separate data by cct_active (0 and 1) for rural and urban
-        rural_pre = rural_data[rural_data['cct_active'] == 0][variable]
-        rural_post = rural_data[rural_data['cct_active'] == 1][variable]
-        urban_pre = urban_data[urban_data['cct_active'] == 0][variable]
-        urban_post = urban_data[urban_data['cct_active'] == 1][variable]
-        
-        # Calculate the increments (Post - Pre) if data is available
-        if not rural_pre.empty and not rural_post.empty and not urban_pre.empty and not urban_post.empty:
-            rural_diff = rural_post.mean() - rural_pre.mean()
-            urban_diff = urban_post.mean() - urban_pre.mean()
-            
-            # Calculate the difference of differences
-            diff_of_diff = urban_diff - rural_diff
-            
-            # Perform a t-test between the increments
-            rural_increment = rural_post.values - rural_pre.mean()
-            urban_increment = urban_post.values - urban_pre.mean()
-            t_stat, p_val = ttest_ind(rural_increment, urban_increment, equal_var=False)
-            
-            diff_of_diff_results.append({
-                'Country': country,
-                'Variable': variable,
-                'Rural Increment': rural_diff,
-                'Urban Increment': urban_diff,
-                'Difference of Differences': diff_of_diff,
-                't-stat': t_stat,
-                'p-value': p_val
-            })
-
-# Convert the results to a DataFrame
-diff_of_diff_results_df = pd.DataFrame(diff_of_diff_results)
-
-# Save the results to a CSV file
-output_path = 'difference_of_differences_results.csv'  # Replace with your desired output path
-diff_of_diff_results_df.to_csv(output_path, index=False)
-
-# Display the results
-print("Difference of Differences Results:")
-print(diff_of_diff_results_df)
-
-```
-
-# T-test without empty observations
-
-```{python}
-# Eliminar filas con valores nulos en las variables clave
+# Drop NAs
 filtered_data = combined_data.dropna(subset=['years_edu_all', 'enrollment6_12yo', 'enrollment13_17yo'])
 
 # Initialize a list to store the results
@@ -464,10 +402,6 @@ for country in countries:
 # Convert the results to a DataFrame
 diff_of_diff_results_df = pd.DataFrame(diff_of_diff_results)
 
-# Save the results to a CSV file
-output_path = 'difference_of_differences_results.csv'  # Replace with your desired output path
-diff_of_diff_results_df.to_csv(output_path, index=False)
-
 # Display the results
 print("Difference of Differences Results:")
 print(diff_of_diff_results_df)
@@ -477,6 +411,7 @@ print(diff_of_diff_results_df)
 # Education and quality of dwellings
 
 ```{python}
+# Plot of correlation between Education and quality of dwellings by country
 chart = alt.Chart(countries_with_cct_df).mark_point().encode(
     x=alt.X('years_edu_all_rural:Q', axis=alt.Axis(title='Years of Education')),
     y=alt.Y('dwellings_low_quality_rural:Q', axis=alt.Axis(title='Share of Poor Dwellings')),
@@ -491,11 +426,47 @@ chart = alt.Chart(countries_with_cct_df).mark_point().encode(
 
 
 chart.show()
+```
 
+# Correlation calculation
+
+```{python}
+# List of countries
+countries = ["Brazil", "Chile", "Mexico", "Peru", "Paraguay"]
+
+# Create a dictionary to store the correlations
+correlations = []
+
+# Iterate through each country
+for country in countries:
+    # Filter data by country
+    country_df = countries_with_cct_df[countries_with_cct_df['country'] == country]
+    
+    # Check that the relevant columns exist and do not have missing values
+    if 'dwellings_low_quality_rural' in country_df.columns and 'years_edu_all_rural' in country_df.columns:
+        # Calculate the correlation if there is enough data
+        if len(country_df.dropna(subset=['dwellings_low_quality_rural', 'years_edu_all_rural'])) > 1:
+            correlation = country_df[['dwellings_low_quality_rural', 'years_edu_all_rural']].corr().iloc[0, 1]
+            correlations.append({'Country': country, 'Correlation': correlation})
+        else:
+            correlations.append({'Country': country, 'Correlation': 'Not enough data'})
+    else:
+        correlations.append({'Country': country, 'Correlation': 'Data not available'})
+
+# Convert the result into a DataFrame
+correlation_df = pd.DataFrame(correlations)
+
+# Display the correlation table in the console
+print(correlation_df)
+
+# Save the results to a CSV file
+output_path = "country_correlations.csv"
+correlation_df.to_csv(output_path, index=False)
+print(f"Correlations saved to '{output_path}'")
 
 ```
 
-# Quality of Dwellings post-CCT
+# Quality of Dwellings post-CCT, graph 
 
 ```{python}
 
@@ -512,7 +483,7 @@ for country in countries:
     country_df = countries_with_cct_df[countries_with_cct_df["country"] == country]
 
     chart = alt.Chart(country_df).mark_point().encode(
-        x=alt.X('year:O', axis=alt.Axis(title='Year')),  # Use ordinal for year
+        x=alt.X('year:O', axis=alt.Axis(title='Year')), 
         y=alt.Y('dwellings_low_quality_rural:Q',
                 axis=alt.Axis(title='Share of Poor Dwellings'))
     ).properties(
@@ -522,75 +493,12 @@ for country in countries:
     )
 
     vertical_line = alt.Chart(pd.DataFrame({'year': [implementation_years[country]]})).mark_rule(color='red').encode(
-        x='year:O'  # Ensure the year is treated as ordinal for the vertical line
+        x='year:O'  
     )
 
     plot = chart + vertical_line
 
     plot.show()
-
-
-```
-
-# Educational outcomes post CCT
-
-```{python}
-import pandas as pd
-import altair as alt
-
-countries = ["Brazil", "Chile", "Mexico", "Peru", "Paraguay"]
-
-# Year of CCT implementation for each country
-implementation_years = {
-    "Brazil": 2003,
-    "Chile": 2002,
-    "Mexico": 1997,
-    "Peru": 2005,
-    "Paraguay": 2005
-}
-
-# Education variables of interest
-education_vars = ['years_edu_all', 'enrollment6_12yo', 'enrollment13_17yo']
-
-# Custom titles for the variables
-custom_titles = {
-    'years_edu_all': 'Years of Education',
-    'enrollment6_12yo': 'Share of Children Aged 6-12 Enrolled in School',
-    'enrollment13_17yo': 'Share of Teenagers Aged 13-17 Enrolled in School'
-}
-
-# Loop to generate plots for each country and variable
-for country in countries:
-    country_df = countries_with_cct_df[countries_with_cct_df["country"] == country]
-
-    for var in education_vars:
-        # Generate plots for rural and urban areas
-        for area in ['rural', 'urban']:
-            area_var = f"{var}_{area}"
-            
-            chart = alt.Chart(country_df).mark_point().encode(
-                x=alt.X('year:O', axis=alt.Axis(title='Year')),  # Year as ordinal
-                y=alt.Y(f'{area_var}:Q',
-                        axis=alt.Axis(title=f'{custom_titles[var]} ({area.capitalize()})'),
-                        scale=alt.Scale(zero=False)),
-                tooltip=['year', area_var]
-            ).properties(
-                width=360,
-                height=360,
-                title=f"{custom_titles[var]} in {country}'s {area.capitalize()} Areas"
-            )
-
-            # Vertical line for the implementation year
-            vertical_line = alt.Chart(pd.DataFrame({'year': [implementation_years[country]]})).mark_rule(color='red').encode(
-                x='year:O'
-            )
-
-            # Combine the chart and the vertical line
-            plot = chart + vertical_line
-
-            # Display the plot
-            plot.show()
-
 ```
 
 # Regression Analysis
@@ -625,7 +533,9 @@ cct_data_corr_urban = countries_with_cct_df[relevant_columns_urban].dropna()
 print(f"Rural data shape: {cct_data_corr_rural.shape}")
 print(f"Urban data shape: {cct_data_corr_urban.shape}")
 
-# Correlation analysis in rural areas
+#### Correlation analysis in rural areas ####
+#############################################
+
 # Exclude non-numeric columns for correlation analysis - rural
 numeric_columns_rural = cct_data_corr_rural.select_dtypes(include=['float64', "int64", 'int32']).columns
 correlation_matrix_rural = cct_data_corr_rural[numeric_columns_rural].corr()
@@ -635,7 +545,9 @@ cct_correlations_rural = correlation_matrix_rural['cct_active'].sort_values(asce
 print("\nCorrelations with CCT Active (Rural):")
 print(cct_correlations_rural)
 
-# Correlation analysis in urban areas
+#### Correlation analysis in urban areas ####
+#############################################
+
 # Exclude non-numeric columns for correlation analysis - urban
 numeric_columns_urban = cct_data_corr_urban.select_dtypes(include=['float64', 'int64', "int32"]).columns
 correlation_matrix_urban = cct_data_corr_urban[numeric_columns_urban].corr()
@@ -691,10 +603,7 @@ run_fixed_effects(cct_data_corr_urban, outcome_vars, explanatory_vars_urban, 'ur
 
 # Dif in Dif
 
-
 ```{python}
-
-
 # Function to perform Difference-in-Differences analysis
 def run_did_analysis(data, outcomes, region):
     print(f"\n--- Difference-in-Differences Analysis for {region.capitalize()} Data ---\n")
@@ -751,5 +660,4 @@ print(final_did_results)
 
 # Save results to CSV
 final_did_results.to_csv("did_results_with_dwellings.csv", index=False)
-
 ```
