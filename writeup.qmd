@@ -39,7 +39,7 @@ The cleaning process for the ([education](./cleaning_education.qmd) and [infrast
 
 To explore outcomes beyond education, we examined changes to the quality of life before and after CCT implementation. Because health, mental health and labor force participation have been widely studied, we opted to delve into the quality of dwellings. This addresses a gap in the literature and considers that dwelling quality is less influenced by systemic differences across countries. While health outcomes will vary according to a country's public health and healthcare strucutre, a safe, well-built house is likely to be consistent across all countires. Furthermore, home improvement is an area where individuals have significant autonomy and often allocate surplus income.
 
-After cleaning and merging the data, [we created clear and informative plots to visualize the data effectively](./final_project_initial_analysis.qmd). We then conducted simple regressions, correlation analyses, and t-tests to determine whether the observed differences in the data were statistically significant.
+After cleaning and merging the data, [we created clear and informative plots to visualize the data effectively](./final_project_analysis.qmd). We then conducted simple regressions, correlation analyses, and t-tests to determine whether the observed differences in the data were statistically significant.
 
 Given time limitations, the project did not aim to establish causal relationships. All findings are based on descriptive and correlational analyses, without robustness checks for causality. Nevertheless, the insights gathered provide valuable descriptive information that can inform future policy.
 
