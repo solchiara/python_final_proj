@@ -511,7 +511,7 @@ for country in countries:
     plot = chart + vertical_line
 
     plot.show()
-    chart.save(os.path.join(graphs_dir, f"dwelling_{country}.png"))
+    plot.save(os.path.join(graphs_dir, f"dwelling_{country}.png"))
 ```
 
 # Regression Analysis
