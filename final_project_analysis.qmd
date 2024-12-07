@@ -69,8 +69,8 @@ else:
 
 ```{python}
 # Open data
-education_data = pd.read_csv("all_education.csv")
-infrastructure_data = pd.read_csv("all_infrastructure_housing.csv")
+education_data = pd.read_csv("data/cleaned/all_education.csv")
+infrastructure_data = pd.read_csv("data/cleaned/all_infrastructure_housing.csv")
 
 # Merge both datasets
 merged_edu_infra_data = pd.merge(education_data, infrastructure_data, on=['country', 'year', 'year_cct'], how='outer')
@@ -96,7 +96,10 @@ countries_with_cct_df = merged_edu_infra_data[merged_edu_infra_data['year_cct'].
 
 In this section, we create visualizations to compare the median values of key outcome variables over time between rural and urban areas for all Latin American countries with conditional cash transfer (CCT) programs, excluding Colombia and Argentina. This approach allows us to observe trends and differences across the region, providing insights into the potential impact of CCT programs. By focusing on median values, we minimize the influence of outliers and better capture central tendencies in the data.
 
-```{python}
+```{python, echo=false}
+graphs_dir = os.path.join(os.getcwd(), "Graphs")
+os.makedirs("Graphs", exist_ok=True)
+
 # List of outcomes to include in the analysis
 outcomes = ['years_edu_all', 'enrollment6_12yo', 'enrollment13_17yo']
 
@@ -194,7 +197,7 @@ for var in outcomes:
     final_chart.show()
 
     # Save the chart as a PNG file
-    chart.save(f'{var}.png')
+    chart.save(os.path.join(graphs_dir, f"{var}.png"))
 
 ```
 
@@ -203,7 +206,7 @@ for var in outcomes:
 
 In this section, we analyze the mean values of key outcome variables across Latin American countries with conditional cash transfer (CCT) programs. We calculate the mean for each variable, distinguishing between rural and urban areas, and grouping by the presence or absence of CCT programs. This analysis provides insights into the average impact of CCT programs at the country level. 
 
-```{python}
+```{python, echo=false}
 # List of outcomes to include in the analysis
 outcomes = ['years_edu_all', 'enrollment6_12yo', 'enrollment13_17yo']
 
@@ -262,8 +265,7 @@ for var in outcomes:
     chart.show()
 
     # Save the chart as a PNG file
-    chart.save(f'mean_{var}.png')
-
+    chart.save(os.path.join(graphs_dir, f"mean_{var}.png"))
 ```
 
 # Differential growth in years of education and enrollment pre- and post-CCT, per country
@@ -346,6 +348,7 @@ for var in outcomes:
 
     chart.show()
 
+    chart.save(os.path.join(graphs_dir, f"change_{var}.png"))
 
 ```
 
@@ -410,7 +413,7 @@ print(diff_of_diff_results_df)
 
 # Education and quality of dwellings
 
-```{python}
+```{python, echo=false}
 # Plot of correlation between Education and quality of dwellings by country
 chart = alt.Chart(countries_with_cct_df).mark_point().encode(
     x=alt.X('years_edu_all_rural:Q', axis=alt.Axis(title='Years of Education')),
@@ -426,6 +429,7 @@ chart = alt.Chart(countries_with_cct_df).mark_point().encode(
 
 
 chart.show()
+chart.save(os.path.join(graphs_dir, "corr_edu_dwelling.png"))
 ```
 
 # Correlation calculation
@@ -468,7 +472,7 @@ print(f"Correlations saved to '{output_path}'")
 
 # Quality of Dwellings post-CCT, graph 
 
-```{python}
+```{python, echo=false}
 
 countries = ["Brazil", "Chile", "Mexico", "Peru", "Paraguay"]
 
@@ -499,6 +503,7 @@ for country in countries:
     plot = chart + vertical_line
 
     plot.show()
+    chart.save(os.path.join(graphs_dir, f"dwelling_{country}.png"))
 ```
 
 # Regression Analysis
