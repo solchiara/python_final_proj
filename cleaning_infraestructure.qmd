@@ -21,7 +21,8 @@ output:
   eval: false
 ---
 
-```{python, echo=false}
+```{python}
+#| echo: false
 #------------------------
 #       Settings
 #------------------------
@@ -56,7 +57,8 @@ else:
 
 # Countries with CCT
 
-```{python, echo=false}
+```{python}
+#| echo: false
 # List of countries with conditional cash transfers (CCT)
 cct_countries = {
     "country": ["Brazil", "Mexico", "Colombia", "Argentina", "Chile", "Peru", "Paraguay"],
@@ -79,7 +81,8 @@ cct_countries.to_csv("data/cleaned/cct_countries.csv", index=False)
 
 # Cleaning infrastructure data
 
-```{python, echo=false}
+```{python}
+#| echo: false
 infrastructure_raw = pd.read_excel(
     "data/raw/2024_Act1_infrastructure_LAC.xlsx", sheet_name="infrastructure_areas")
 
@@ -375,7 +378,8 @@ infrastructure_df['year'] = pd.to_numeric(infrastructure_df['year'], errors='coe
 
 # Cleaning housing data
 
-```{python, echo=false}
+```{python}
+#| echo: false
 housing_raw = pd.read_excel(
     "data/raw/2024_Act1_housing_LAC.xlsx", sheet_name="house area")
 
@@ -665,7 +669,8 @@ housing_df['year'] = pd.to_numeric(housing_df['year'], errors='coerce')
 
 # Merging datasets
 
-```{python, echo=false}
+```{python}
+#| echo: false
 infrastructure_housing_df = pd.merge(housing_df, infrastructure_df, on=["country", "year"], how="inner")
 
 # Merge with year and name of CCT

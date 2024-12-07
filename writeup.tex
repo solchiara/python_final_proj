@@ -165,22 +165,15 @@ Lopes}
 
 \subsection{Motivation}\label{motivation}
 
-Since their inception in Latin America in the 1990's, Conditional Cash
-Transfers (CCT) have been the anti-poverty program of choice in the
-region and in other developing countries. The programs' general
-structure often entail an income subsidy given to poor families,
-benefits which are tied to their children's school enrollment.
-
-The success of these programs in increasing school enrollment and
-mitigating poverty at the national level is well-documented. However,
-fewer research has focused on the differential impacts of CCT programs
-between urban and rural populations. In cases where families withdraw
-children from school to supplement household income---a situation common
-in both urban and rural areas---CCTs effectively address the issue by
-providing income subsidies. However, if low school enrollment is due to
-limited access to schools, which is more prevalent in rural areas with
-inadequate infrastructure, CCTs alone may be an insufficient strategy to
-combat intergenerational poverty and inequality.
+Since the 1990s, Conditional Cash Transfers (CCTs) have been a key
+anti-poverty program in Latin America and other developing regions.
+These programs provide income subsidies to poor families, tied to their
+children's school enrollment. While their success in boosting enrollment
+and reducing poverty is well-documented, less research explores their
+differing impacts on urban and rural areas. CCTs address income-driven
+school withdrawals, common in both settings. However, they may not solve
+low enrollment caused by limited school access, a problem more frequent
+in rural areas with poor infrastructure.
 
 Motivated by such discrepancies, this research project aims to
 understand whether there is evidence of differential long-term impacts
@@ -189,49 +182,47 @@ areas.
 
 \begin{figure}[H]
 
-{\centering \includegraphics[width=0.6\textwidth,height=\textheight]{Graphs/years_edu_all.png}
+{\centering \includegraphics[width=0.4\textwidth,height=\textheight]{Graphs/years_edu_all.png}
 
 }
 
-\caption{Years of Education over years}
+\caption{The figure shows the aggregated median years of education in
+Brazil, Chile, Mexico, Paraguay, and Peru. While there is a general
+upward trend, urban populations have, on average, two more years of
+education than rural populations. This pattern is consistent across all
+countries, with disaggregated visualizations available in the Shiny
+dashboard.}
 
 \end{figure}%
 
-The figure shows the aggregated median years of education in Brazil,
-Chile, Mexico, Paraguay, and Peru. While there is a general upward
-trend, urban populations have, on average, two more years of education
-than rural populations. This pattern is consistent across all countries,
-with disaggregated visualizations available in the Shiny dashboard.
-
 \subsection{Data Source and Approach}\label{data-source-and-approach}
 
-To answer the research question, this project used data compiled by the
-Center for Distributive, Labor and Social Studies (CEDLAS), from the
-National University of La Plata in Argentina, in partnership with the
-World Bank. We retrieved datasets about education, infrastrcutre, and
-housing, publicly available on their
+This project used data compiled by the Center for Distributive, Labor
+and Social Studies (CEDLAS), from the National University of La Plata in
+Argentina, in partnership with the World Bank. We retrieved datasets
+about education, infrastrcutre, and housing, publicly available on their
 \href{https://www.cedlas.econo.unlp.edu.ar/wp/en/estadisticas/sedlac/estadisticas/}{website}.
 
-The cleaning process (\href{./cleaning_education.qmd}{education data}
+The cleaning process for the (\href{./cleaning_education.qmd}{education}
 and \href{./cleaning_infraestructure.qmd}{infrastructure data}) selected
-the information depending on the survey methodologies for each country.
+information depending on the survey methodologies for each country.
 Then, for the analysis, we narrowed the datasets to include only the
 target countries and variables of interest. Brazil, Chile, Mexico,
-Paraguay, and Peru were selected because they had both (a) implemented a
+Paraguay, and Peru were chosen because they had both (a) implemented a
 CCT program and (b) available rural and urban disaggregated data.
 Variables were refined to focus only on relevant outcomes. We considered
 years of education to gauge urban and rural disparities broadly.
 However, we focused on school enrollment for 6- to 12-year-olds and 13-
 to 17-year-olds to better capture immediate impacts of CCTs.
 
-To explore outcomes beyond education, we wanted to examine changes to
-the quality of life before and after CCT implementation. Because health,
-mental health and labor force participation have been widely studied, we
-opted to delve into the quality of dwellings. This addresses a gap in
-the literature and consideres that dwelling quality is less influenced
-by systemic differences across countries. While health outcomes will
-vary according to a country's public health and healthcare strucutre, a
-safe, well-built house is likely to be consistent across all countires.
+To explore outcomes beyond education, we examined changes to the quality
+of life before and after CCT implementation. Because health, mental
+health and labor force participation have been widely studied, we opted
+to delve into the quality of dwellings. This addresses a gap in the
+literature and considers that dwelling quality is less influenced by
+systemic differences across countries. While health outcomes will vary
+according to a country's public health and healthcare strucutre, a safe,
+well-built house is likely to be consistent across all countires.
 Furthermore, home improvement is an area where individuals have
 significant autonomy and often allocate surplus income.
 
@@ -250,7 +241,7 @@ inform future policy.
 
 \subsection{Findings}\label{findings}
 
-The main finding is that rural areas might lead the increase in school
+The main finding is that rural areas lead the increase in school
 enrollment associated with the implementation of CCT programs. The
 average percentage-point increase in rural school enrollment in the
 periods after the implementation of a CCT program relative to periods
@@ -267,26 +258,19 @@ income.
 \begin{figure}
 
 \begin{minipage}{0.50\linewidth}
-
-\includegraphics[width=0.9\textwidth,height=\textheight]{Graphs/change_enrollment6_12yo.png}
-
-\subcaption{\label{}Figure 2a}
-\end{minipage}%
+\includegraphics{Graphs/change_enrollment6_12yo.png}\end{minipage}%
 %
 \begin{minipage}{0.50\linewidth}
+\includegraphics{Graphs/change_enrollment13_17yo.png}\end{minipage}%
 
-\includegraphics[width=0.9\textwidth,height=\textheight]{Graphs/change_enrollment13_17yo.png}
-
-\subcaption{\label{}Figure 2b}
-\end{minipage}%
+\caption{\label{fig-combined}Figures 2a and 2b depict the average
+percentage point increase in school enrollment following the
+implementation of a CCT program in a given country, for 6- to
+12-year-olds and 13- to 17-year-olds, respectively. Rural areas across
+all countries consistently exhibit greater enrollment increases compared
+to urban areas.}
 
 \end{figure}%
-
-Figures 2a and 2b depict the average percentage point increase in school
-enrollment following the implementation of a CCT program in a given
-country, for 6- to 12-year-olds and 13- to 17-year-olds, respectively.
-Rural areas across all countries consistently exhibit greater enrollment
-increases compared to urban areas.
 
 We also explored how higher enrollment rates could translate into better
 homes. Running a simple correlation, we found that in Brazil, Chile, and
@@ -300,17 +284,15 @@ rural populations living in poor dwellings.
 
 \begin{figure}[H]
 
-{\centering \includegraphics[width=0.6\textwidth,height=\textheight]{Graphs/corr_edu_dwelling.png}
+{\centering \includegraphics[width=0.4\textwidth,height=\textheight]{Graphs/corr_edu_dwelling.png}
 
 }
 
-\caption{Correlation Dwellings and Years of Education}
+\caption{The figure shows the correlation between years of education and
+the average share of the population living in poor dwellings in rural
+areas, disaggregated by country.}
 
 \end{figure}%
-
-Figure 3 shows the correlation between years of education and the
-average share of the population living in poor dwellings in rural areas,
-disaggregated by country. :::
 
 This intuition is confirmed by visualizing how the share of poor
 dwellings decreases after the implementation of CCT programs in each of
@@ -319,6 +301,20 @@ sophisticated identification strategy, such as a differences in
 differences design, is needed to explore causality without confounding
 factors. Still, these preliminary graphs are an optimistic start for
 future research on the topic.
+
+\begin{figure}
+
+\begin{minipage}{0.50\linewidth}
+\includegraphics{Graphs/dwelling_Brazil.png}\end{minipage}%
+%
+\begin{minipage}{0.50\linewidth}
+\includegraphics{Graphs/dwelling_Chile.png}\end{minipage}%
+
+\caption{\label{fig-combined}Figures 4a and 4b shows the evolution of
+the share poor dwellings after and before CCT implementation in Brazil
+and Chile.}
+
+\end{figure}%
 
 For additional plots and comparisons, a \href{./shiny-app/app.py}{Shiny
 dashboard} allows the user to allows explore trends for the outcomes
@@ -331,10 +327,11 @@ enrollment rates, especially in rural areas. The long-term benefits go
 beyond educational and financial gains, and could also possibly extend
 to housing quality, although further research is needed in this respect.
 
-Although remaining disparities indicate a need for targeted infrastrcure
-and education policies to better serve rural populations, these findings
-reinforce the success of CCT programs as a transformative force in
-breaking the cycle of poverty across both urban and rural landscapes.
+Despite remaining disparities indicating a need for targeted
+infrastrcure and education policies to better serve rural populations,
+these findings reinforce the success of CCT programs as a transformative
+force in breaking the cycle of poverty across both urban and rural
+landscapes.
 
 
 

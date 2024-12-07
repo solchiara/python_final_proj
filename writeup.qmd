@@ -45,13 +45,6 @@ The main finding is that rural areas lead the increase in school enrollment asso
 
 Such improvements are particularly meaningful for the 13- to 17-year-old group, suggesting that CCTs played a key role in keeping teenagers in school. This indicates that the subsidies likely offset or outweigh the immediate income benefits of enterging the workforce before school completion. Furthermore, these improvements highlight that interruptions in education are primarily driven by the need to supplement family income.
 
-::: {#fig-combined layout="[[50,50]]"}
-![Figure 2a](Graphs/change_enrollment6_12yo.png){width=90%} 
-
-![Figure 2b](Graphs/change_enrollment13_17yo.png){width=90%}
-
-:::
-
 ::: {#fig-combined layout-ncol=2}
 
 ![](Graphs/change_enrollment6_12yo.png){width=90%}
@@ -70,6 +63,15 @@ We also explored how higher enrollment rates could translate into better homes. 
 :::
 
 This intuition is confirmed by visualizing how the share of poor dwellings decreases after the implementation of CCT programs in each of those 4 countries, even when effects are not immediate. A more sophisticated identification strategy, such as a differences in differences design, is needed to explore causality without confounding factors. Still, these preliminary graphs are an optimistic start for future research on the topic. 
+
+::: {#fig-combined layout-ncol=2}
+
+![](Graphs/dwelling_Brazil.png){width=90%}
+
+![](Graphs/dwelling_Chile.png){width=90%}
+
+Figures 4a and 4b shows the evolution of the share poor dwellings after and before CCT implementation in Brazil and Chile.
+:::
 
 For additional plots and comparisons, a [Shiny dashboard](./shiny-app/app.py) allows the user to allows explore trends for the outcomes preivously mentioned across the five different countries analyzed.
 

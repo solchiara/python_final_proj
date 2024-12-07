@@ -1,5 +1,5 @@
 ---
-title: "Final project: Data and Programming for Public Policy II"
+title: "Final project - Data Analysis: Data and Programming for Public Policy II"
 author: "Cristian Bancayan, Sol Rivas Lopes & Claudia Felipe"
 date: "12-04-2024"
 format: 
@@ -24,6 +24,8 @@ output:
 # Set-up
 
 ```{python}
+#| echo: false
+
 #------------------------
 #       Settings
 #------------------------
@@ -65,7 +67,9 @@ else:
 
 ## Data cleaning and merging
 
-```{python}
+```{python, echo=false}
+#| echo: false
+
 # Open data
 education_data = pd.read_csv("data/cleaned/all_education.csv")
 infrastructure_data = pd.read_csv("data/cleaned/all_infrastructure_housing.csv")
@@ -94,7 +98,8 @@ countries_with_cct_df = merged_edu_infra_data[merged_edu_infra_data['year_cct'].
 
 In this section, we create visualizations to compare the median values of key outcome variables over time between rural and urban areas for all Latin American countries with conditional cash transfer (CCT) programs, excluding Colombia and Argentina. This approach allows us to observe trends and differences across the region, providing insights into the potential impact of CCT programs. By focusing on median values, we minimize the influence of outliers and better capture central tendencies in the data.
 
-```{python, echo=false}
+```{python}
+#| echo: false
 graphs_dir = os.path.join(os.getcwd(), "Graphs")
 os.makedirs("Graphs", exist_ok=True)
 
@@ -204,7 +209,8 @@ for var in outcomes:
 
 In this section, we analyze the mean values of key outcome variables across Latin American countries with conditional cash transfer (CCT) programs. We calculate the mean for each variable, distinguishing between rural and urban areas, and grouping by the presence or absence of CCT programs. This analysis provides insights into the average impact of CCT programs at the country level. 
 
-```{python, echo=false}
+```{python}
+#| echo: false
 # List of outcomes to include in the analysis
 outcomes = ['years_edu_all', 'enrollment6_12yo', 'enrollment13_17yo']
 
@@ -271,6 +277,7 @@ for var in outcomes:
 This section produces graphs showing the differential increse in education outcomes by country, disaggregated by region type.
 
 ```{python}
+#| echo: false
 # Create an education df
 education_agg_df = countries_with_cct_df[['years_edu_all_urban',
                                           'enrollment6_12yo_urban', 'enrollment13_17yo_urban',
@@ -353,6 +360,7 @@ for var in outcomes:
 # T-test 
 
 ```{python}
+#| echo: false
 # Drop NAs
 filtered_data = combined_data.dropna(subset=['years_edu_all', 'enrollment6_12yo', 'enrollment13_17yo'])
 
@@ -411,7 +419,8 @@ print(diff_of_diff_results_df)
 
 # Education and quality of dwellings
 
-```{python, echo=false}
+```{python}
+#| echo: false
 # Plot of correlation between Education and quality of dwellings by country
 chart = alt.Chart(countries_with_cct_df).mark_point().encode(
     x=alt.X('years_edu_all_rural:Q', axis=alt.Axis(title='Years of Education')),
@@ -433,6 +442,7 @@ chart.save(os.path.join(graphs_dir, "corr_edu_dwelling.png"))
 # Correlation calculation
 
 ```{python}
+#| echo: false
 # List of countries
 countries = ["Brazil", "Chile", "Mexico", "Peru", "Paraguay"]
 
@@ -470,8 +480,8 @@ print(f"Correlations saved to '{output_path}'")
 
 # Quality of Dwellings post-CCT, graph 
 
-```{python, echo=false}
-
+```{python}
+#| echo: false
 countries = ["Brazil", "Chile", "Mexico", "Peru", "Paraguay"]
 
 implementation_years = {"Brazil" : 2003,
@@ -509,6 +519,7 @@ for country in countries:
 In this section, we perform a correlation analysis to explore the relationships between key variables and the implementation of conditional cash transfer (CCT) programs. We separately analyze rural and urban areas, focusing on variables related to education outcomes, infrastructure, and living conditions.
 
 ```{python}
+#| echo: false
 # Relevant columns for rural and urban areas
 relevant_columns_rural = [
     'cct_active', 'enrollment3_5yo_rural', 'enrollment6_12yo_rural',
@@ -564,6 +575,7 @@ print(cct_correlations_urban)
 In this section, we conduct fixed effects regressions to examine the relationship between the implementation of conditional cash transfer (CCT) programs and key educational outcomes in rural and urban areas. The regressions are run separately for rural and urban datasets, allowing us to identify differences in the impact of CCT programs across these contexts. By using a fixed effects approach, we account for unobserved heterogeneity within countries over time, providing robust estimates of the effects of the CCT programs. 
 
 ```{python}
+#| echo: false
 # Set the index (for fixed effects regression)
 cct_data_corr_rural = cct_data_corr_rural.set_index(['country', 'year'])
 cct_data_corr_urban = cct_data_corr_urban.set_index(['country', 'year'])
@@ -607,6 +619,7 @@ run_fixed_effects(cct_data_corr_urban, outcome_vars, explanatory_vars_urban, 'ur
 # Dif in Dif
 
 ```{python}
+#| echo: false
 # Function to perform Difference-in-Differences analysis
 def run_did_analysis(data, outcomes, region):
     print(f"\n--- Difference-in-Differences Analysis for {region.capitalize()} Data ---\n")
