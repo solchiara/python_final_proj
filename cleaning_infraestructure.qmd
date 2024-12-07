@@ -1,0 +1,689 @@
+---
+title: "Final project: Data and Programming for Public Policy II"
+author: "Cristian Bancayan, Sol Rivas & Claudia Felipe"
+date: "12-04-2024"
+format: 
+  pdf:
+    include-in-header: 
+       text: |
+         \usepackage{fvextra}
+         \DefineVerbatimEnvironment{Highlighting}{Verbatim}{breaklines,commandchars=\\\{\}}
+include-before-body:
+  text: |
+    \RecustomVerbatimEnvironment{verbatim}{Verbatim}{
+      showspaces = false,
+      showtabs = false,
+      breaksymbolleft={},
+      breaklines
+    }
+output:
+  echo: false
+  eval: false
+---
+
+```{python}
+#------------------------
+#       Settings
+#------------------------
+
+# Packages 
+#------------------------
+import os
+import pandas as pd
+import altair as alt
+
+
+# Working directory
+#------------------------
+username = os.getlogin()
+
+# Define paths for each user of this project
+paths = {
+    "Cristian": r"C:\Users\Cristian\Documents\GitHub\ppha30538_fall2024\python_final_proj",
+    "solch": r"C:\Users\solch\OneDrive\Documentos\2024 - autumn quarter\python II\python_final_proj",
+    "clfel": r"C:\Users\clfel\Documents\GitHub\Python II\python_final_proj"
+}
+
+# Changing wd depending on the user:
+if username in paths:
+    os.chdir(paths[username])
+    print(f"Directory changed to: {os.getcwd()}")
+else:
+    print(f"No predefined path for user: {username}")
+
+# Note: Please update with the path of your folder and computer user.
+```
+
+# Countries with CCT
+
+```{python}
+# List of countries with conditional cash transfers (CCT)
+cct_countries = {
+    "country": ["Brazil", "Mexico", "Colombia", "Argentina", "Chile", "Peru", "Paraguay"],
+    "cct_name": [
+        "Bolsa Família", 
+        "Progresa/Oportunidades/Prospera", 
+        "Familias en Acción", 
+        "Asignación Universal por Hijo", 
+        "Chile Solidario", 
+        "Juntos", 
+        "Tekoporã"
+    ],
+    "year_cct": [2003, 1997, 2001, 2009, 2002, 2005, 2005]
+}
+
+# Dataframe
+cct_countries = pd.DataFrame(cct_countries)
+cct_countries.to_csv("data/cleaned/cct_countries.csv", index=False)
+```
+
+# Cleaning infrastructure data
+
+```{python}
+infrastructure_raw = pd.read_excel(
+    "data/raw/2024_Act1_infrastructure_LAC.xlsx", sheet_name="infrastructure_areas")
+
+# Removing the headers
+infrastructure_df = infrastructure_raw[7:]
+
+# Removing columns with all NAs
+infrastructure_df = infrastructure_df.dropna(axis=1, how="all")
+
+# All Latam countries in the dataset
+countries_latam = [
+    'Argentina', 'Bolivia', 'Brazil', 'Chile', 'Colombia', 'Costa Rica', 'Dominican Rep.', 'Ecuador', 'El Salvador', 'Guatemala', 'Honduras', 'Mexico', 'Nicaragua', 'Panama', 'Paraguay', 'Peru', 'Uruguay', 'Venezuela'
+]
+
+# Function to extract countries in a new column from the dataset
+def match_country(value):
+    value = str(value).strip()  
+    if value in countries_latam:
+        return value  
+    return None 
+
+# Extract the countries in a new columns:
+infrastructure_df["country"] = infrastructure_df['Unnamed: 0'].apply(match_country)
+
+# Repeat country names for each row they correspond
+infrastructure_df["country"] = infrastructure_df["country"].fillna(method='ffill')
+
+# Order the columns
+cols = ['country'] + [col for col in infrastructure_df.columns if col != 'country']
+infrastructure_df = infrastructure_df[cols]
+
+# Rename columns
+infrastructure_df.columns = [
+    'country',
+    'year',
+    'water_rural',
+    'water_urban',
+    'water_mean',
+    'hygienic_restrooms_rural',
+    'hygienic_restrooms_urban',
+    'hygienic_restrooms_mean',
+    'sewerage_rural',
+    'sewerage_urban',
+    'sewerage_mean',
+    'electricity_rural',
+    'electricity_urban',
+    'electricity_mean',
+    'telephone_rural',
+    'telephone_urban',
+    'telephone_mean'
+]
+
+# Choosing the years/surveys for each country
+infrastructure_df["year"] = infrastructure_df["year"].astype(str).str.strip()
+
+# Bolivia
+#----------
+# We are keeping from 2011 onwards
+condition_bolivia = infrastructure_df.apply(
+    lambda row: row["country"] == "Bolivia" and str(row["year"]).isdigit() and int(row["year"]) >= 2011, axis=1
+)
+
+# Apply the condition for Bolivia
+infrastructure_df = infrastructure_df[condition_bolivia | (infrastructure_df["country"] != "Bolivia")]
+
+# Brazil
+#----------
+# These two index identify the changes in the datasets. We are following:
+# From 1995 to 2003 under the New PNAD. They ask enrollment to all individuals
+# From 2004 to 2011 under the New PNAD With Rural North. 
+# From 2012 onwards under the PNADC. They capture enrollment from 5 years old.
+
+with_rural_north_index = infrastructure_df[(infrastructure_df["country"] == "Brazil") & (infrastructure_df["year"] == "With Rural North")].index
+pnadc_index = infrastructure_df[(infrastructure_df["country"] == "Brazil") & (infrastructure_df["year"] == "PNADC")].index
+
+# Define the condition for Brazil
+condition_brazil = infrastructure_df.apply(
+    lambda row: (
+        row["country"] == "Brazil" and str(row["year"]).isdigit() and (
+            (1995 <= int(row["year"]) <= 2003) or
+            (with_rural_north_index.size > 0 and row.name > with_rural_north_index[0] and 2004 <= int(row["year"]) <= 2011) or
+            (pnadc_index.size > 0 and row.name > pnadc_index[0] and 2012 <= int(row["year"]) <= 2022)
+        )
+    ),
+    axis=1
+)
+
+# Apply the condition for Brazil
+infrastructure_df = infrastructure_df[condition_brazil | (infrastructure_df["country"] != "Brazil")]
+
+# Chile
+# ---------
+# We are considering all available information. Not information for all years, every two years
+infrastructure_df = infrastructure_df[~((infrastructure_df["country"] == "Chile") & (infrastructure_df["year"] == "Chile"))]
+
+
+# Colombia
+# ----------
+# There is no information before the implementation of the CCT.
+# Data from 2001 to 2005 for ECH-National.
+# In 2008, a new dataset named GEIH-National is available. Gap of 2 years (2006 and 2007). 
+# There is a new methodology for the GEIH since 2021. 2021 and 2022 with new methodology is not considered. It would be just including one more year (2022).
+
+new_meth_index = infrastructure_df[(infrastructure_df["country"] == "Colombia") & (infrastructure_df["year"] == "New Methodology")].index
+
+# Define the condition for Colombia
+condition_colombia = infrastructure_df.apply(
+    lambda row: (
+        row["country"] == "Colombia" and str(row["year"]).isdigit() and (
+            (new_meth_index.size > 0 and row.name < new_meth_index[0]) 
+        )
+    ),
+    axis=1
+)
+
+
+# Apply the condition for Colombia
+infrastructure_df = infrastructure_df[condition_colombia | (infrastructure_df["country"] != "Colombia")]
+
+# Costa Rica
+#-----------------
+# Enrollment from 3-5 yo were asked from 2006
+condition_costa_rica = infrastructure_df.apply(
+    lambda row: row["country"] == "Costa Rica" and str(row["year"]).isdigit() and int(row["year"]) >= 2006, axis=1
+)
+
+# Apply the condition for Costa Rica
+infrastructure_df = infrastructure_df[condition_costa_rica | (infrastructure_df["country"] != "Costa Rica")]
+
+# Dominican Rep.
+#------------------
+enft2_index = infrastructure_df[(infrastructure_df["country"] == "Dominican Rep.") & (infrastructure_df["year"] == "ENFT 2")].index
+enft3_index = infrastructure_df[(infrastructure_df["country"] == "Dominican Rep.") & (infrastructure_df["year"] == "ENFT 3")].index
+ecnft_index = infrastructure_df[(infrastructure_df["country"] == "Dominican Rep.") & (infrastructure_df["year"] == "ECNFT")].index
+
+
+condition_dominican_rep = infrastructure_df.apply(
+    lambda row: (
+        row["country"] == "Dominican Rep." and (
+        str(row["year"]).isdigit() and (
+            (enft2_index.size > 0 and row.name > enft2_index[0] and int(row["year"]) <= 2004 ) 
+        )) or ( str(row["year"]).isdigit() and (
+            (enft3_index.size > 0 and row.name > enft3_index[0] and int(row["year"]) <= 2015)
+        )) or ( str(row["year"]).isdigit() and (
+            (ecnft_index.size > 0 and row.name > ecnft_index[0])
+        ))
+    ),
+    axis=1
+)
+
+
+# Apply the condition for Dominican Rep.
+infrastructure_df = infrastructure_df[condition_dominican_rep | (infrastructure_df["country"] != "Dominican Rep.")]
+
+# Ecuador
+# ------------
+# Data from 2003, when ENEMDU stated
+enemdu_index = infrastructure_df[(infrastructure_df["country"] == "Ecuador") & (infrastructure_df["year"] == "ENEMDU")].index
+
+# Define the condition for Ecuador
+condition_ecuador = infrastructure_df.apply(
+    lambda row: (
+        row["country"] == "Ecuador" and str(row["year"]).isdigit() and (
+            (enemdu_index.size > 0 and row.name > enemdu_index[0] and 2003 <= int(row["year"])) 
+        )
+    ),
+    axis=1
+)
+
+# Apply the condition for Ecuador 
+infrastructure_df = infrastructure_df[condition_ecuador | (infrastructure_df["country"] != "Ecuador")]
+
+# El Salvador
+#--------------
+condition_el_salvador = infrastructure_df.apply(
+    lambda row: row["country"] == "El Salvador" and str(row["year"]).isdigit() and int(row["year"]) >= 2000, axis=1
+)
+
+# Apply the condition for El Salvador
+infrastructure_df = infrastructure_df[condition_el_salvador | (infrastructure_df["country"] != "El Salvador")]
+
+# Guatemala
+#-------------
+# We remove 2002, 2003 and 2004 because they are from another survey.
+
+condition_guatemala = infrastructure_df.apply(
+    lambda row: row["country"] == "Guatemala" and str(row["year"]).isdigit(),
+    axis=1
+)
+
+# Apply the condition for Guatemala
+infrastructure_df = infrastructure_df[condition_guatemala | (infrastructure_df["country"] != "Guatemala")]
+# Removing 2002, 2003, and 2004.
+infrastructure_df = infrastructure_df[~((infrastructure_df["country"] == "Guatemala") & (infrastructure_df['year'].isin(["2002", "2003", "2004"])))]
+
+# Honduras
+# -----------
+# We keep information from 2001 since INE
+condition_honduras = infrastructure_df.apply(
+    lambda row: row["country"] == "Honduras" and str(row["year"]).isdigit() and int(row["year"]) >= 2001, axis=1
+)
+
+# Apply the condition for Honduras
+infrastructure_df = infrastructure_df[condition_honduras | (infrastructure_df["country"] != "Honduras")]
+
+
+# Mexico
+#------------
+# In 2016 there was a new methodology
+condition_mexico = infrastructure_df.apply(
+    lambda row: row["country"] == "Mexico" and str(row["year"]).isdigit(),
+    axis=1
+)
+
+# Apply the condition for Mexico
+infrastructure_df = infrastructure_df[condition_mexico | (infrastructure_df["country"] != "Mexico")]
+
+# Nicaragua
+#-------------
+condition_nicaragua = infrastructure_df.apply(
+    lambda row: row["country"] == "Nicaragua" and str(row["year"]).isdigit(),
+    axis=1
+)
+
+# Apply the condition for Nicaragua
+infrastructure_df = infrastructure_df[condition_nicaragua | (infrastructure_df["country"] != "Nicaragua")]
+
+# Panama
+# -----------
+# Note: from 2010 onwards they ask enrollment from 4yo, before it was 5 yo.
+condition_panama = infrastructure_df.apply(
+    lambda row: row["country"] == "Panama" and str(row["year"]).isdigit(),
+    axis=1
+)
+
+# Apply the condition for Panama
+infrastructure_df = infrastructure_df[condition_panama | (infrastructure_df["country"] != "Panama")]
+
+# Paraguay
+#-----------
+condition_paraguay = infrastructure_df.apply(
+    lambda row: row["country"] == "Paraguay" and str(row["year"]).isdigit(),
+    axis=1
+)
+
+# Apply the condition for Paraguay
+infrastructure_df = infrastructure_df[condition_paraguay | (infrastructure_df["country"] != "Paraguay")]
+
+# Peru
+#-----------
+# Ehano had many changes between 2000 and 2003. Maybe is better to use from 2003 onwards, but the CCT was implemented in 2005.
+
+enaho2_index = infrastructure_df[(infrastructure_df["country"] == "Peru") & (infrastructure_df["year"] == "ENAHO 2")].index
+enaho3_index = infrastructure_df[(infrastructure_df["country"] == "Peru") & (infrastructure_df["year"] == "ENAHO 3")].index
+
+condition_peru = infrastructure_df.apply(
+    lambda row: (
+        row["country"] == "Peru" and (
+        str(row["year"]).isdigit() and (
+            (enaho2_index.size > 0 and row.name > enaho2_index[0] and int(row["year"]) <= 2002 ) 
+        )) or ( str(row["year"]).isdigit() and (
+            (enaho3_index.size > 0 and row.name > enaho3_index[0] and 2003 <= int(row["year"]))
+        ))
+    ),
+    axis=1
+)
+
+# Apply the condition for Peru
+infrastructure_df = infrastructure_df[condition_peru | (infrastructure_df["country"] != "Peru")]
+
+# Uruguay
+# ---------
+
+# Define the condition for Uruguay
+condition_uruguay = infrastructure_df.apply(
+    lambda row: row["country"] == "Uruguay" and str(row["year"]).isdigit(),
+    axis=1
+)
+
+infrastructure_df = infrastructure_df[condition_uruguay | (infrastructure_df["country"] != "Uruguay")]
+
+
+# Venezuela
+# ------------
+infrastructure_df = infrastructure_df[~((infrastructure_df["country"] == "Venezuela") & (infrastructure_df["year"] == "Venezuela"))]
+
+infrastructure_df['year'] = pd.to_numeric(infrastructure_df['year'], errors='coerce')
+
+# Save data into CSV file
+# infrastructure_df.to_csv("data/cleaned/cleaned_infrastructure.csv", index=False)
+```
+
+
+# Cleaning housing data
+
+```{python}
+housing_raw = pd.read_excel(
+    "data/raw/2024_Act1_housing_LAC.xlsx", sheet_name="house area")
+
+# Removing the headers
+housing_df = housing_raw[5:]
+
+# Removing columns with all NAs
+housing_df = housing_df.dropna(axis=1, how="all")
+
+# All Latam countries in the dataset
+countries_latam = [
+    'Argentina', 'Bolivia', 'Brazil', 'Chile', 'Colombia', 'Costa Rica', 'Dominican Rep.', 'Ecuador', 'El Salvador', 'Guatemala', 'Honduras', 'Mexico', 'Nicaragua', 'Panama', 'Paraguay', 'Peru', 'Uruguay', 'Venezuela'
+]
+
+# Function to extract countries in a new column from the dataset
+def match_country(value):
+    value = str(value).strip()  
+    if value in countries_latam:
+        return value  
+    return None 
+
+# Extract the countries in a new columns:
+housing_df["country"] = housing_df['Unnamed: 0'].apply(match_country)
+
+# Repeat country names for each row they correspond
+housing_df["country"] = housing_df["country"].fillna(method='ffill')
+
+# Order the columns
+cols = ['country'] + [col for col in housing_df.columns if col != 'country']
+housing_df = housing_df[cols]
+
+# Rename columns
+housing_df.columns = [
+    'country',
+    'year',
+    'share_owners_rural',
+    'share_owners_urban',
+    'share_owners_mean',
+    'n_rooms_rural',
+    'n_rooms_urban',
+    'n_rooms_mean',
+    'person_per_room_rural',
+    'person_per_room_urban',
+    'person_per_room_mean',
+    'share_poor_dwellings_rural',
+    'share_poor_dwellings_urban',
+    'share_poor_dwellings_mean',
+    'dwellings_low_quality_rural',
+    'dwellings_low_quality_urban',
+    'dwellings_low_quality_mean'
+]
+
+# Choosing the years/surveys for each country
+housing_df["year"] = housing_df["year"].astype(str).str.strip()
+
+# Bolivia
+#----------
+# We are keeping from 2011 onwards
+condition_bolivia = housing_df.apply(
+    lambda row: row["country"] == "Bolivia" and str(row["year"]).isdigit() and int(row["year"]) >= 2011, axis=1
+)
+
+# Apply the condition for Bolivia
+housing_df = housing_df[condition_bolivia | (housing_df["country"] != "Bolivia")]
+
+# Brazil
+#----------
+# These two index identify the changes in the datasets. We are following:
+# From 1995 to 2003 under the New PNAD. They ask enrollment to all individuals
+# From 2004 to 2011 under the New PNAD With Rural North. 
+# From 2012 onwards under the PNADC. They capture enrollment from 5 years old.
+
+with_rural_north_index = housing_df[(housing_df["country"] == "Brazil") & (housing_df["year"] == "With Rural North")].index
+pnadc_index = housing_df[(housing_df["country"] == "Brazil") & (housing_df["year"] == "PNADC")].index
+
+# Define the condition for Brazil
+condition_brazil = housing_df.apply(
+    lambda row: (
+        row["country"] == "Brazil" and str(row["year"]).isdigit() and (
+            (1995 <= int(row["year"]) <= 2003) or
+            (with_rural_north_index.size > 0 and row.name > with_rural_north_index[0] and 2004 <= int(row["year"]) <= 2011) or
+            (pnadc_index.size > 0 and row.name > pnadc_index[0] and 2012 <= int(row["year"]) <= 2022)
+        )
+    ),
+    axis=1
+)
+
+# Apply the condition for Brazil
+housing_df = housing_df[condition_brazil | (housing_df["country"] != "Brazil")]
+
+# Chile
+# ---------
+# We are considering all available information. Not information for all years, every two years
+housing_df = housing_df[~((housing_df["country"] == "Chile") & (housing_df["year"] == "Chile"))]
+
+
+# Colombia
+# ----------
+# There is no information before the implementation of the CCT.
+# Data from 2001 to 2005 for ECH-National.
+# In 2008, a new dataset named GEIH-National is available. Gap of 2 years (2006 and 2007). 
+# There is a new methodology for the GEIH since 2021. 2021 and 2022 with new methodology is not considered. It would be just including one more year (2022).
+
+new_meth_index = housing_df[(housing_df["country"] == "Colombia") & (housing_df["year"] == "New Methodology")].index
+
+# Define the condition for Colombia
+condition_colombia = housing_df.apply(
+    lambda row: (
+        row["country"] == "Colombia" and str(row["year"]).isdigit() and (
+            (new_meth_index.size > 0 and row.name < new_meth_index[0]) 
+        )
+    ),
+    axis=1
+)
+
+# Apply the condition for Colombia
+housing_df = housing_df[condition_colombia | (housing_df["country"] != "Colombia")]
+
+# Costa Rica
+#-----------------
+# Enrollment from 3-5 yo were asked from 2006
+condition_costa_rica = housing_df.apply(
+    lambda row: row["country"] == "Costa Rica" and str(row["year"]).isdigit() and int(row["year"]) >= 2006, axis=1
+)
+
+# Apply the condition for Costa Rica
+housing_df = housing_df[condition_costa_rica | (housing_df["country"] != "Costa Rica")]
+
+# Dominican Rep.
+#------------------
+enft2_index = housing_df[(housing_df["country"] == "Dominican Rep.") & (housing_df["year"] == "ENFT 2")].index
+enft3_index = housing_df[(housing_df["country"] == "Dominican Rep.") & (housing_df["year"] == "ENFT 3")].index
+ecnft_index = housing_df[(housing_df["country"] == "Dominican Rep.") & (housing_df["year"] == "ECNFT")].index
+
+condition_dominican_rep = housing_df.apply(
+    lambda row: (
+        row["country"] == "Dominican Rep." and (
+        str(row["year"]).isdigit() and (
+            (enft2_index.size > 0 and row.name > enft2_index[0] and int(row["year"]) <= 2004 ) 
+        )) or ( str(row["year"]).isdigit() and (
+            (enft3_index.size > 0 and row.name > enft3_index[0] and int(row["year"]) <= 2015)
+        )) or ( str(row["year"]).isdigit() and (
+            (ecnft_index.size > 0 and row.name > ecnft_index[0])
+        ))
+    ),
+    axis=1
+)
+
+# Apply the condition for Dominican Rep.
+housing_df = housing_df[condition_dominican_rep | (housing_df["country"] != "Dominican Rep.")]
+
+# Ecuador
+# ------------
+enemdu_index = housing_df[(housing_df["country"] == "Ecuador") & (housing_df["year"] == "ENEMDU")].index
+
+# Define the condition for Ecuador
+condition_ecuador = housing_df.apply(
+    lambda row: (
+        row["country"] == "Ecuador" and str(row["year"]).isdigit() and (
+            (enemdu_index.size > 0 and row.name > enemdu_index[0] and 2003 <= int(row["year"])) 
+        )
+    ),
+    axis=1
+)
+
+# Apply the condition for Ecuador 
+housing_df = housing_df[condition_ecuador | (housing_df["country"] != "Ecuador")]
+
+# El Salvador
+#--------------
+condition_el_salvador = housing_df.apply(
+    lambda row: row["country"] == "El Salvador" and str(row["year"]).isdigit() and int(row["year"]) >= 2000, axis=1
+)
+
+# Apply the condition for El Salvador
+housing_df = housing_df[condition_el_salvador | (housing_df["country"] != "El Salvador")]
+
+# Guatemala
+#-------------
+# We remove 2002, 2003 and 2004 because they are from another survey.
+
+condition_guatemala = housing_df.apply(
+    lambda row: row["country"] == "Guatemala" and str(row["year"]).isdigit(),
+    axis=1
+)
+
+# Apply the condition for Guatemala
+housing_df = housing_df[condition_guatemala | (housing_df["country"] != "Guatemala")]
+# Removing 2002, 2003, and 2004.
+housing_df = housing_df[~((housing_df["country"] == "Guatemala") & (housing_df['year'].isin(["2002", "2003", "2004"])))]
+
+# Honduras
+# -----------
+# We keep information from 2001 since INE
+condition_honduras = housing_df.apply(
+    lambda row: row["country"] == "Honduras" and str(row["year"]).isdigit() and int(row["year"]) >= 2001, axis=1
+)
+
+# Apply the condition for Honduras
+housing_df = housing_df[condition_honduras | (housing_df["country"] != "Honduras")]
+
+
+# Mexico
+#------------
+# In 2016 there was a new methodology
+condition_mexico = housing_df.apply(
+    lambda row: row["country"] == "Mexico" and str(row["year"]).isdigit(),
+    axis=1
+)
+
+# Apply the condition for Mexico
+housing_df = housing_df[condition_mexico | (housing_df["country"] != "Mexico")]
+
+# Nicaragua
+#-------------
+condition_nicaragua = housing_df.apply(
+    lambda row: row["country"] == "Nicaragua" and str(row["year"]).isdigit(),
+    axis=1
+)
+
+# Apply the condition for Nicaragua
+housing_df = housing_df[condition_nicaragua | (housing_df["country"] != "Nicaragua")]
+
+# Panama
+# -----------
+# Note: from 2010 onwards they ask enrollment from 4yo, before it was 5 yo.
+condition_panama = housing_df.apply(
+    lambda row: row["country"] == "Panama" and str(row["year"]).isdigit(),
+    axis=1
+)
+
+# Apply the condition for Panama
+housing_df = housing_df[condition_panama | (housing_df["country"] != "Panama")]
+
+# Paraguay
+#-----------
+condition_paraguay = housing_df.apply(
+    lambda row: row["country"] == "Paraguay" and str(row["year"]).isdigit(),
+    axis=1
+)
+
+# Apply the condition for Paraguay
+housing_df = housing_df[condition_paraguay | (housing_df["country"] != "Paraguay")]
+
+# Peru
+#-----------
+# Ehano had many changes between 2000 and 2003. Maybe is better to use from 2003 onwards, but the CCT was implemented in 2005.
+
+enaho2_index = housing_df[(housing_df["country"] == "Peru") & (housing_df["year"] == "ENAHO 2")].index
+enaho3_index = housing_df[(housing_df["country"] == "Peru") & (housing_df["year"] == "ENAHO 3")].index
+
+condition_peru = housing_df.apply(
+    lambda row: (
+        row["country"] == "Peru" and (
+        str(row["year"]).isdigit() and (
+            (enaho2_index.size > 0 and row.name > enaho2_index[0] and int(row["year"]) <= 2002 ) 
+        )) or ( str(row["year"]).isdigit() and (
+            (enaho3_index.size > 0 and row.name > enaho3_index[0] and 2003 <= int(row["year"]))
+        ))
+    ),
+    axis=1
+)
+
+# Apply the condition for Peru
+housing_df = housing_df[condition_peru | (housing_df["country"] != "Peru")]
+
+# Uruguay
+# ---------
+
+# Define the condition for Uruguay
+condition_uruguay = housing_df.apply(
+    lambda row: row["country"] == "Uruguay" and str(row["year"]).isdigit(),
+    axis=1
+)
+
+housing_df = housing_df[condition_uruguay | (housing_df["country"] != "Uruguay")]
+
+# Venezuela
+# ------------
+housing_df = housing_df[~((housing_df["country"] == "Venezuela") & (housing_df["year"] == "Venezuela"))]
+
+housing_df['year'] = pd.to_numeric(housing_df['year'], errors='coerce')
+
+# Save data into CSV file
+# housing_df.to_csv("data/cleaned/cleaned_housing.csv", index=False)
+```
+
+# Merging datasets
+
+```{python}
+infrastructure_housing_df = pd.merge(housing_df, infrastructure_df, on=["country", "year"], how="inner")
+
+# Merge with year and name of CCT
+infrastructure_housing_df = pd.merge(infrastructure_housing_df, cct_countries, left_on=["country"], right_on=["country"], how="left")
+
+#Reorder columns
+column_order = ['country', 'year', 'year_cct', 'cct_name'] + [col for col in infrastructure_housing_df.columns if col not in ['country', 'year', 'year_cct', 'cct_name']]
+
+infrastructure_housing_df = infrastructure_housing_df[column_order]
+
+# Check duplicates
+duplicates = infrastructure_housing_df[infrastructure_housing_df.duplicated(subset=['country', 'year'], keep=False)]
+# Display the duplicates
+print(duplicates)
+
+# Save data into CSV file
+infrastructure_housing_df.to_csv("data/cleaned/all_infrastructure_housing.csv", index=False)
+
+```
+
+
