@@ -1,0 +1,66 @@
+---
+title: \large PPHA:30538 Final Project Writeup
+author: \normalsize Cristian Bancayan, Claudia Felipe & Sol Rivas Lopes 
+format: pdf
+fontsize: 10pt
+execute:
+  eval: false
+  echo: false
+---
+
+## Motivation
+Since their inception in Latin America in the 1990's, Conditional Cash Transfers (CCT) have been the anti-poverty program of choice in the region and in other developing countries. The programs' general structure often entail an income subsidy given to poor families, benefits which are tied to their children's school enrollment. 
+
+The success of these programs in increasing school enrollment and mitigating poverty at the national level is well-documented. However, fewer research has focused on the differential impacts of CCT programs between urban and rural populations. In cases where families withdraw children from school to supplement household income—a situation common in both urban and rural areas—CCTs effectively address the issue by providing income subsidies. However, if low school enrollment is due to limited access to schools, which is more prevalent in rural areas with inadequate infrastructure, CCTs alone may be an insufficient strategy to combat intergenerational poverty and inequality.
+
+Motivated by such discrepancies, this research project aims to understand whether there is evidence of differential long-term impacts of CCTs in education and quality of life outcomes in rural and urban areas.
+
+:::{.figure}
+![Years of Education over years](Graphs/years_edu_all.png){width=50%}
+
+The figure shows the aggregated median years of education in Brazil, Chile, Mexico, Paraguay, and Peru. While there is a general upward trend, urban populations have, on average, two more years of education than rural populations. This pattern is consistent across all countries, with disaggregated visualizations available in the Shiny dashboard.
+:::
+
+
+## Data Source and Approach
+To answer the research question, this project used data compiled by the Center for Distributive, Labor and Social Studies (CEDLAS), from the National University of La Plata in Argentina, in partnership with the World Bank. We retrieved datasets about education, infrastrcutre, and housing, publicly available on their [website](https://www.cedlas.econo.unlp.edu.ar/wp/en/estadisticas/sedlac/estadisticas/).
+
+The cleaning process ([education data](./cleaning_education.qmd) and [infrastructure data](./cleaning_infraestructure.qmd)) selected the information depending on the survey methodologies for each country. Then, for the analysis, we narrowed the datasets to include only the target countries and variables of interest. Brazil, Chile, Mexico, Paraguay, and Peru were selected because they had both (a) implemented a CCT program and (b) available rural and urban disaggregated data. Variables were refined to focus only on relevant outcomes. We considered years of education to gauge urban and rural disparities broadly. However, we focused on school enrollment for 6- to 12-year-olds and 13- to 17-year-olds to better capture immediate impacts of CCTs.
+
+To explore outcomes beyond education, we wanted to examine changes to the quality of life before and after CCT implementation. Because health, mental health and labor force participation have been widely studied, we opted to delve into the quality of dwellings. This addresses a gap in the literature and consideres that dwelling quality is less influenced by systemic differences across countries. While health outcomes will vary according to a country's public health and healthcare strucutre, a safe, well-built house is likely to be consistent across all countires. Furthermore, home improvement is an area where individuals have significant autonomy and often allocate surplus income.
+
+After cleaning and merging the data, [we created clear and informative plots to visualize the data effectively](./final_project_initial_analysis.qmd). We then conducted simple regressions, correlation analyses, and t-tests to determine whether the observed differences in the data were statistically significant.
+
+Given time limitations, the project did not aim to establish causal relationships. All findings are based on descriptive and correlational analyses, without robustness checks for causality. Nevertheless, the insights gathered provide valuable descriptive information that can inform future policy.
+
+## Findings
+The main finding is that rural areas lead the increase in school enrollment associated with the implementation of CCT programs. The average percentage-point increase in rural school enrollment in the periods after the implementation of a CCT program relative to periods before exceeds that of urban areas across all countries. 
+
+Such improvements are particularly meaningful for the 13- to 17-year-old group, suggesting that CCTs played a key role in keeping teenagers in school. This indicates that the subsidies likely offset or outweigh the immediate income benefits of enterging the workforce before school completion. Furthermore, these improvements highlight that interruptions in education are primarily driven by the need to supplement family income.
+
+[FIGURES SIDE BY SIDE]
+[ADD FIGURE 2: INCREASE IN SCHOOL ENROLLMENT 6-12 YEAR OLDS]
+[ADD FIGURE 3: INCREASE IN SCHOOL ENROLLMENT 13-17 YEAR OLDS]
+[JOINT DESCRIPTION: Figures 2 and 3 depict the average percentage point increase in school enrollment following the implementation of a CCT program in a given country, for 6- to 12-year-olds and 13- to 17-year-olds, respectively. Rural areas across all countries consistently exhibit greater enrollment increases compared to urban areas.]
+
+
+We also explored how higher enrollment rates could translate into better homes. Running a simple correlation, we found that in Brazil, Chile, and Mexico, years of education and dwelling quality are highly inversely correlated, with coefficients exceeding 0.9. In Paraguay, the correlation is initially low, but after dropping two outliers, the same linear relationship holds. Peru is the only country where these two measures appear to be uncorrelated. These findings therefore suggest that CCT programs indirectly and negatively affect the share of rural populations living in poor dwellings.
+
+[ADD FIGURE 4: COREELATION DWELLINGS AND YEARS OF EDUCATION]
+[DESCRIPTION: Figure 4 shows the correlation between years of education and the average share of the population living in poor dwellings in rural areas, disaggregated by country.]
+
+This intuition is confirmed by visualizing how the share of poor dwellings decreases after the implementation of CCT programs in each of those 4 countries, even when effects are not immediate. A more sophisticated identification strategy, such as a regression discontinuity design, is needed to determine causality wihout confoounding factors. Still, these preliminary graphs are an optimistic start for future research on the topic. 
+
+[PANEL WITH 4 FIGURES]
+[ADD FIGURE 5: DWELLINGS BRAZIL] 
+[ADD FIGURE 6: DWELLINGS CHILE]
+[ADD FIGURE 7: DWELLINGS MEXICO]
+[ADD FIGURE 8: DWELLINGS PARAGUAY]
+[DESCRIPTION: Figures 5, 6, 7 and 8 show the share of the population living in poor dwellings by year in Brazil, Chile, Mexico and Paraguay. The vertical red line represents the year of implementation of a CCT program in a given country.]
+
+For additional plots and comparisons, a [Shiny dashboard](./shiny-app/app.py) allows the user to allows explore trends for the outcomes preivously mentioned across the five different countries analyzed.
+
+## Policy Implications
+Unlike our initial expectation, CCTs played a key role in increasing enrollment rates, especially in rural areas. The long-term benefits go beyond educational and financial gains, and could also possibly extend to housing quality, although further research is needed in this respect.
+
+Although remaining disparities indicate a need for targeted infrastrcure and education policies to better serve rural populations, these findings reinforce the success of CCT programs as a transformative force in breaking the cycle of poverty across both urban and rural landscapes.
