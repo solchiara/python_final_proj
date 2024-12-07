@@ -471,11 +471,6 @@ correlation_df = pd.DataFrame(correlations)
 # Display the correlation table in the console
 print(correlation_df)
 
-# Save the results to a CSV file
-output_path = "country_correlations.csv"
-correlation_df.to_csv(output_path, index=False)
-print(f"Correlations saved to '{output_path}'")
-
 ```
 
 # Quality of Dwellings post-CCT, graph 
@@ -674,6 +669,4 @@ final_did_results = pd.concat([did_results_rural, did_results_urban])
 print("\nFinal DiD Results:")
 print(final_did_results)
 
-# Save results to CSV
-final_did_results.to_csv("did_results_with_dwellings.csv", index=False)
 ```
