@@ -12,6 +12,9 @@ format:
         \usepackage[margin=1in, top=0.6in]{geometry}
         \usepackage{titlesec}
         \titlespacing*{\title}{0pt}{0pt}{20pt} 
+  html:
+    toc: true  
+    number-sections: false
 fontsize: 10pt
 execute:
   eval: false
@@ -25,7 +28,7 @@ Since the 1990s, Conditional Cash Transfers (CCTs) have been a key anti-poverty 
 Motivated by such discrepancies, this research project aims to understand whether there is evidence of differential long-term impacts of CCTs in education and quality of life outcomes in rural and urban areas.
 
 :::{.figure}
-![The figure shows the aggregated median years of education in Brazil, Chile, Mexico, Paraguay, and Peru. While there is a general upward trend, urban populations have, on average, two more years of education than rural populations. This pattern is consistent across all countries, with disaggregated visualizations available in the Shiny dashboard.](Graphs/years_edu_all.png){width=40%}
+![The figure shows the aggregated median years of education in Brazil, Chile, Mexico, Paraguay, and Peru. While there is a general upward trend, urban populations have, on average, two more years of education than rural populations. This pattern is consistent across all countries, with disaggregated visualizations available in the Shiny dashboard.](pictures/years_edu_all.png){width=40%}
 :::
 
 
@@ -47,9 +50,9 @@ Such improvements are particularly meaningful for the 13- to 17-year-old group, 
 
 ::: {#fig-combined layout-ncol=2}
 
-![](Graphs/change_enrollment6_12yo.png){width=90%}
+![](pictures/change_enrollment6_12yo.png){width=90%}
 
-![](Graphs/change_enrollment13_17yo.png){width=90%}
+![](pictures/change_enrollment13_17yo.png){width=90%}
 
 Figures 2a and 2b depict the average percentage point increase in school enrollment following the implementation of a CCT program in a given country, for 6- to 12-year-olds and 13- to 17-year-olds, respectively. Rural areas across all countries consistently exhibit greater enrollment increases compared to urban areas.
 :::
@@ -58,7 +61,7 @@ Figures 2a and 2b depict the average percentage point increase in school enrollm
 We also explored how higher enrollment rates could translate into better homes. Running a simple correlation, we found that in Brazil, Chile, and Mexico, years of education and dwelling quality are highly inversely correlated, with coefficients exceeding 0.9. In Paraguay, the correlation is initially low, but after dropping two outliers, the same linear relationship holds. Peru is the only country where these two measures appear to be uncorrelated. These findings therefore suggest that CCT programs indirectly and negatively might affect the share of rural populations living in poor dwellings.
 
 :::{.figure}
-![The figure shows the correlation between years of education and the average share of the population living in poor dwellings in rural areas, disaggregated by country.](Graphs/corr_edu_dwelling.png){width=40%}
+![The figure shows the correlation between years of education and the average share of the population living in poor dwellings in rural areas, disaggregated by country.](pictures/corr_edu_dwelling.png){width=40%}
 
 :::
 
@@ -66,11 +69,11 @@ This intuition is confirmed by visualizing how the share of poor dwellings decre
 
 ::: {#fig-combined layout-ncol=2}
 
-![](Graphs/dwelling_Brazil.png){width=90%}
+![](pictures/dwelling_Brazil.png){width=90%}
 
-![](Graphs/dwelling_Chile.png){width=90%}
+![](pictures/dwelling_Chile.png){width=90%}
 
-Figures 4a and 4b shows the evolution of the share poor dwellings after and before CCT implementation in Brazil and Chile.
+Figures 4a and 4b shows the evolution of the share poor dwellings after and before the CCT implementation in Brazil and Chile.
 :::
 
 For additional plots and comparisons, a [Shiny dashboard](./shiny-app/app.py) allows the user to allows explore trends for the outcomes preivously mentioned across the five different countries analyzed.
