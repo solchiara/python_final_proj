@@ -100,8 +100,8 @@ In this section, we create visualizations to compare the median values of key ou
 
 ```{python}
 #| echo: false
-graphs_dir = os.path.join(os.getcwd(), "Graphs")
-os.makedirs("Graphs", exist_ok=True)
+graphs_dir = os.path.join(os.getcwd(), "pictures")
+os.makedirs("pictures", exist_ok=True)
 
 # List of outcomes to include in the analysis
 outcomes = ['years_edu_all', 'enrollment6_12yo', 'enrollment13_17yo']
