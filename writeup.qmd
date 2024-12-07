@@ -57,7 +57,6 @@ Such improvements are particularly meaningful for the 13- to 17-year-old group, 
 Figures 2a and 2b depict the average percentage point increase in school enrollment following the implementation of a CCT program in a given country, for 6- to 12-year-olds and 13- to 17-year-olds, respectively. Rural areas across all countries consistently exhibit greater enrollment increases compared to urban areas.
 :::
 
-
 We also explored how higher enrollment rates could translate into better homes. Running a simple correlation, we found that in Brazil, Chile, and Mexico, years of education and dwelling quality are highly inversely correlated, with coefficients exceeding 0.9. In Paraguay, the correlation is initially low, but after dropping two outliers, the same linear relationship holds. Peru is the only country where these two measures appear to be uncorrelated. These findings therefore suggest that CCT programs indirectly and negatively might affect the share of rural populations living in poor dwellings.
 
 :::{.figure}
