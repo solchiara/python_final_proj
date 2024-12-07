@@ -34,9 +34,7 @@ import os
 import pandas as pd
 import altair as alt
 import numpy as np
-import altair as alt
 from altair_saver import save
-import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
 from linearmodels.panel import PanelOLS
